@@ -1,0 +1,343 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SilaiTrack - Tailoring Management System Design System
+   Inspired by premium Indian boutique aesthetics */
+
+
+@layer base {
+  :root {
+    /* Warm cream background - fabric-like */
+    --background: 40 33% 98%;
+    --foreground: 20 25% 15%;
+
+    /* Card surfaces - subtle warmth */
+    --card: 40 30% 99%;
+    --card-foreground: 20 25% 15%;
+
+    --popover: 40 30% 99%;
+    --popover-foreground: 20 25% 15%;
+
+    /* Primary - Deep Burgundy (regal tailoring) */
+    --primary: 345 45% 28%;
+    --primary-foreground: 40 30% 98%;
+
+    /* Secondary - Warm taupe */
+    --secondary: 30 15% 92%;
+    --secondary-foreground: 20 25% 20%;
+
+    /* Muted - Soft warm gray */
+    --muted: 30 10% 94%;
+    --muted-foreground: 20 10% 45%;
+
+    /* Accent - Rich gold */
+    --accent: 38 75% 55%;
+    --accent-foreground: 20 25% 10%;
+
+    /* Destructive */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Success - Emerald */
+    --success: 152 60% 38%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning - Amber */
+    --warning: 38 92% 50%;
+    --warning-foreground: 20 25% 10%;
+
+    /* Info */
+    --info: 210 70% 50%;
+    --info-foreground: 0 0% 100%;
+
+    /* Borders & inputs */
+    --border: 30 15% 88%;
+    --input: 30 15% 88%;
+    --ring: 345 45% 28%;
+
+    --radius: 0.625rem;
+
+    /* Sidebar */
+    --sidebar-background: 345 35% 22%;
+    --sidebar-foreground: 40 25% 92%;
+    --sidebar-primary: 38 75% 55%;
+    --sidebar-primary-foreground: 20 25% 10%;
+    --sidebar-accent: 345 30% 28%;
+    --sidebar-accent-foreground: 40 25% 92%;
+    --sidebar-border: 345 25% 30%;
+    --sidebar-ring: 38 75% 55%;
+
+    /* Custom tokens for boutique feel */
+    --gold: 38 75% 55%;
+    --gold-light: 38 70% 70%;
+    --burgundy: 345 45% 28%;
+    --burgundy-light: 345 35% 40%;
+    --burgundy-dark: 345 50% 18%;
+    --cream: 40 33% 96%;
+    --cream-dark: 35 20% 90%;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(20 25% 15% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(20 25% 15% / 0.08), 0 2px 4px -2px hsl(20 25% 15% / 0.05);
+    --shadow-lg: 0 10px 15px -3px hsl(20 25% 15% / 0.08), 0 4px 6px -4px hsl(20 25% 15% / 0.05);
+    --shadow-xl: 0 20px 25px -5px hsl(20 25% 15% / 0.1), 0 8px 10px -6px hsl(20 25% 15% / 0.05);
+
+    /* Gradients */
+    --gradient-gold: linear-gradient(135deg, hsl(38 75% 55%) 0%, hsl(38 80% 45%) 100%);
+    --gradient-burgundy: linear-gradient(135deg, hsl(345 45% 32%) 0%, hsl(345 50% 22%) 100%);
+    --gradient-sidebar: linear-gradient(180deg, hsl(345 40% 24%) 0%, hsl(345 45% 18%) 100%);
+  }
+
+  .dark {
+    --background: 20 20% 8%;
+    --foreground: 40 20% 95%;
+
+    --card: 20 18% 12%;
+    --card-foreground: 40 20% 95%;
+
+    --popover: 20 18% 12%;
+    --popover-foreground: 40 20% 95%;
+
+    --primary: 345 40% 45%;
+    --primary-foreground: 40 30% 98%;
+
+    --secondary: 20 15% 18%;
+    --secondary-foreground: 40 20% 90%;
+
+    --muted: 20 12% 20%;
+    --muted-foreground: 30 10% 60%;
+
+    --accent: 38 70% 50%;
+    --accent-foreground: 20 25% 10%;
+
+    --destructive: 0 65% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 55% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 85% 50%;
+    --warning-foreground: 20 25% 10%;
+
+    --border: 20 15% 22%;
+    --input: 20 15% 22%;
+    --ring: 345 40% 45%;
+
+    --sidebar-background: 20 20% 6%;
+    --sidebar-foreground: 40 20% 90%;
+    --sidebar-primary: 38 70% 50%;
+    --sidebar-primary-foreground: 20 25% 10%;
+    --sidebar-accent: 20 15% 15%;
+    --sidebar-accent-foreground: 40 20% 90%;
+    --sidebar-border: 20 15% 18%;
+    --sidebar-ring: 38 70% 50%;
+
+    --burgundy: 345 40% 45%;
+    --burgundy-light: 345 35% 55%;
+    --burgundy-dark: 345 45% 30%;
+    --cream: 40 15% 15%;
+    --cream-dark: 35 12% 12%;
+    --gold: 38 70% 50%;
+    --gold-light: 38 65% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Playfair Display', Georgia, serif;
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+
+  /* Stat cards */
+  .stat-card {
+    @apply relative overflow-hidden rounded-xl bg-card p-6 shadow-md transition-all duration-300;
+    box-shadow: var(--shadow-md);
+  }
+
+  .stat-card:hover {
+    box-shadow: var(--shadow-lg);
+    @apply -translate-y-0.5;
+  }
+
+  .stat-card::before {
+    content: '';
+    @apply absolute inset-0 opacity-[0.03];
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* Status badges */
+  .status-badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium;
+  }
+
+  .status-draft {
+    @apply bg-muted text-muted-foreground;
+  }
+
+  .status-sent {
+    @apply bg-info/15 text-info;
+  }
+
+  .status-approved {
+    @apply bg-success/15 text-success;
+  }
+
+  .status-locked {
+    @apply bg-primary/15 text-primary;
+  }
+
+  .status-expired {
+    @apply bg-destructive/15 text-destructive;
+  }
+
+  .status-pending {
+    @apply bg-warning/15 text-warning;
+  }
+
+  .status-ready {
+    @apply bg-success/15 text-success;
+  }
+
+  .status-delivered {
+    @apply bg-accent/15 text-accent-foreground;
+  }
+
+  /* Form inputs - tablet friendly */
+  .form-input-lg {
+    @apply h-12 text-base px-4;
+  }
+
+  /* Measurement grid */
+  .measurement-grid {
+    @apply grid gap-4;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  /* Print styles */
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+
+    .print-only {
+      display: block !important;
+    }
+
+    body {
+      background: white !important;
+      color: black !important;
+    }
+  }
+
+  /* Gold accent line */
+  .gold-accent {
+    @apply relative;
+  }
+
+  .gold-accent::after {
+    content: '';
+    @apply absolute bottom-0 left-0 h-0.5 w-12 bg-accent;
+  }
+
+  /* Fabric texture overlay */
+  .fabric-texture {
+    @apply relative;
+  }
+
+  .fabric-texture::before {
+    content: '';
+    @apply absolute inset-0 pointer-events-none opacity-[0.02];
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23000' fill-opacity='1' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E");
+  }
+
+  /* Scrollbar styling */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-muted/50 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/30;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+}
