@@ -120,11 +120,11 @@ export function Header({ title, subtitle }: HeaderProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer">
+              {/* <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer">
                 <User className="h-4 w-4 mr-2" />Profile Settings
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
               <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
-                <Settings className="h-4 w-4 mr-2" />Business Settings
+                <Settings className="h-4 w-4 mr-2" />Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => signOut()} className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer">
