@@ -1,20 +1,14 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
-  FileText,
-  ClipboardList,
-  Ruler,
-  Scissors,
-  Receipt,
-  Users,
-  Package,
-  BarChart3,
-  Settings,
-  LogOut,
+  LayoutDashboard, FileText, ClipboardList, Ruler, Scissors,
+  Receipt, Users, Package, BarChart3, Settings, LogOut,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import Logo from "@/assets/logo2.png";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -28,33 +22,41 @@ const navigation = [
   { name: "Reports", href: "/reports", icon: BarChart3 },
 ];
 
-
-
-
-const bottomNavigation = [
-  { name: "Settings", href: "/settings", icon: Settings },
-];
-
 export function Sidebar() {
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
   const location = useLocation();
+  // Default to collapsed as requested
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   return (
-    <aside className="hidden md:flex fixed inset-y-0 left-0 z-50 w-64 flex-col bg-sidebar">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border">
-        <div className="flex h-12 w-12 items-center justify-center">
-          <img src={Logo} alt="Naseems Couture Logo" className="h-12 w-12" />
-        </div>
-        <div>
-          <h1 className="font-display text-lg font-semibold text-sidebar-foreground">
+    <aside
+      className={cn(
+        "hidden lg:flex fixed inset-y-0 left-0 z-50 flex-col bg-sidebar transition-all duration-300 border-r border-sidebar-border",
+        isCollapsed ? "w-20" : "w-48"
+      )}
+    >
+      {/* Toggle Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute -right-3 top-20 h-6 w-6 rounded-full border bg-background shadow-md z-50"
+      >
+        {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+      </Button>
+
+      {/* Logo Section */}
+      <div className={cn("flex h-16 items-center border-b border-sidebar-border transition-all px-4", isCollapsed ? "justify-center" : "gap-3 px-6")}>
+        <img src={Logo} alt="Logo" className="h-10 w-10 shrink-0" />
+        {!isCollapsed && (
+          <h1 className="font-display text-sm font-semibold text-sidebar-foreground truncate">
             NASEEM'S COUTURE
           </h1>
-        </div>
+        )}
       </div>
 
-      {/* Main Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto custom-scrollbar">
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
         {navigation.map((item) => {
           const isActive = location.pathname === item.href ||
             (item.href !== "/" && location.pathname.startsWith(item.href));
@@ -64,52 +66,30 @@ export function Sidebar() {
               key={item.name}
               to={item.href}
               className={cn(
-                "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                "group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+                isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50",
+                isCollapsed ? "justify-center" : "gap-3"
               )}
             >
-              <item.icon
-                className={cn(
-                  "h-5 w-5 shrink-0 transition-colors",
-                  isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/70"
-                )}
-              />
-              {item.name}
-              {isActive && (
-                <div className="ml-auto h-1.5 w-1.5 rounded-full bg-sidebar-primary" />
-              )}
+              <item.icon className={cn("h-5 w-5 shrink-0", isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50")} />
+              {!isCollapsed && <span className="truncate">{item.name}</span>}
+              {!isCollapsed && isActive && <div className="ml-auto h-1.5 w-1.5 rounded-full bg-sidebar-primary" />}
             </Link>
           );
         })}
       </nav>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Actions */}
       <div className="border-t border-sidebar-border px-3 py-4 space-y-1">
-        {bottomNavigation.map((item) => {
-          const isActive = location.pathname === item.href;
-
-          return (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={cn(
-                "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-              )}
-            >
-              <item.icon className="h-5 w-5 shrink-0 text-sidebar-foreground/50 group-hover:text-sidebar-foreground/70" />
-              {item.name}
-            </Link>
-          );
-        })}
-
-        <button className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive transition-all duration-200" onClick={signOut}>
+        <button
+          onClick={signOut}
+          className={cn(
+            "group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-destructive/10 hover:text-destructive",
+            isCollapsed ? "justify-center" : "gap-3"
+          )}
+        >
           <LogOut className="h-5 w-5 shrink-0" />
-          Logout
+          {!isCollapsed && <span>Logout</span>}
         </button>
       </div>
     </aside>

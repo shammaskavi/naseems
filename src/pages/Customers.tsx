@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card } from "@/components/ui/card"; // Added this line
+import { Card } from "@/components/ui/card";
 
 import {
   Dialog,
@@ -43,7 +43,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { useCustomers, useCreateCustomer, useUpdateCustomer } from "@/hooks/useCustomers";
-import { useCustomerMeasurements } from "@/hooks/useMeasurements"; // Updated hook for history
+import { useCustomerMeasurements } from "@/hooks/useMeasurements";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -52,7 +52,6 @@ function CustomerMeasurementsDialog({ customer, open, onOpenChange }: { customer
   const { data: history = [], isLoading } = useCustomerMeasurements(customer?.id);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
 
-  // Auto-select the latest record when history loads
   if (history.length > 0 && !selectedRecord && !isLoading) {
     setSelectedRecord(history[0]);
   }
@@ -74,7 +73,6 @@ function CustomerMeasurementsDialog({ customer, open, onOpenChange }: { customer
           <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : history.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
-            {/* Left Sidebar: History Timeline */}
             <div className="md:col-span-1 border-r pr-4 space-y-2 max-h-[400px] overflow-y-auto">
               <p className="text-[10px] font-bold text-muted-foreground uppercase mb-3">Past Records</p>
               {history.map((record: any) => (
@@ -97,7 +95,6 @@ function CustomerMeasurementsDialog({ customer, open, onOpenChange }: { customer
               ))}
             </div>
 
-            {/* Right Side: Details View */}
             <div className="md:col-span-2 space-y-6">
               {selectedRecord ? (
                 <>
@@ -229,7 +226,6 @@ export default function Customers() {
   return (
     <AppLayout title="Customers" subtitle={`${customers.length} total customers`}>
       <div className="space-y-6 animate-fade-in pb-12">
-        {/* Header Actions */}
         <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -283,7 +279,6 @@ export default function Customers() {
           </Dialog>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid gap-4 sm:grid-cols-3">
           <Card className="p-4 flex items-center gap-4">
             <div className="bg-primary/10 p-2 rounded-full"><UserPlus className="h-5 w-5 text-primary" /></div>
@@ -299,7 +294,6 @@ export default function Customers() {
           </Card>
         </div>
 
-        {/* Table View */}
         <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
           <Table>
             <TableHeader><TableRow className="bg-muted/50">
@@ -311,7 +305,11 @@ export default function Customers() {
             </TableRow></TableHeader>
             <TableBody>
               {filteredCustomers.map((customer) => (
-                <TableRow key={customer.id} className="hover:bg-muted/30">
+                <TableRow
+                  key={customer.id}
+                  className="hover:bg-muted/30 cursor-pointer"
+                  onClick={() => navigate(`/customers/${customer.id}`)}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
@@ -323,7 +321,7 @@ export default function Customers() {
                   <TableCell><div className="flex items-center gap-1 text-xs font-medium"><Phone className="h-3 w-3" /> {customer.phone}</div></TableCell>
                   <TableCell><span className="text-xs text-muted-foreground max-w-[150px] truncate block">{customer.address || "-"}</span></TableCell>
                   <TableCell><span className="text-xs font-mono">{format(new Date(customer.created_at), "dd/MM/yy")}</span></TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">

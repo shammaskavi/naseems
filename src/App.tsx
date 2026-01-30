@@ -25,6 +25,7 @@ import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 import PublicInvoiceView from "./pages/PublicInvoiceView";
+import CustomerDetails from "./pages/CustomerDetails";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ function AppRoutes() {
       <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
       <Route path="/orders/:id" element={<ProtectedRoute><OrderDetails /></ProtectedRoute>} />
       <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+      <Route path="/customers/:id" element={<ProtectedRoute><CustomerDetails /></ProtectedRoute>} />
       <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
       <Route path="/jobs" element={<ProtectedRoute><StitchingJobs /></ProtectedRoute>} />
       <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
@@ -72,6 +74,7 @@ function AppRoutes() {
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/public/invoice/:token" element={<PublicInvoiceView />} />
+
 
       {/* Catch-all */}
       <Route path="*" element={<NotFound />} />
