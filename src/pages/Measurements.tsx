@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Save, ArrowLeft, Copy } from "lucide-react";
 import { useMeasurementSet, useCreateMeasurementSet, useUpdateMeasurementSet, useLatestCustomerMeasurement } from "@/hooks/useMeasurements";
-import { useOrder, useOrderItem } from "@/hooks/useOrders"; // Import useOrder to get the customer ID
+import { useOrderItem } from "@/hooks/useOrders";
+import { useCustomer } from "@/hooks/useCustomers";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -37,19 +38,30 @@ const MeasurementInput = ({ label, field, value, onChange }: MeasurementInputPro
 
 export default function Measurements() {
   const { orderItemId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // 1. Fetch existing measurement for this item
-  const { data: existingMeasurement, isLoading: isLoadingExisting } = useMeasurementSet(orderItemId);
+  // Identify if this is a fresh customer profile entry
+  const isNewCustomerMeasurement = orderItemId === "new";
+  const urlCustomerId = searchParams.get("customerId");
 
-  // 2. Fetch the order/item details to get the customer_id
-  const { data: orderItemDetails, isLoading: isLoadingItem } = useOrderItem(orderItemId);
-  // const customerId = orderItemDetails?.customer_id;
-  // const customerId = orderItemDetails?.orders?.customer_id;
-  const customerId = orderItemDetails?.customer?.id;
+  // 1. Fetch existing measurement (Only if not "new")
+  const { data: existingMeasurement, isLoading: isLoadingExisting } = useMeasurementSet(
+    isNewCustomerMeasurement ? undefined : orderItemId
+  );
 
-  // 3. Fetch latest measurements for this specific customer
-  const { data: latestMeasurement } = useLatestCustomerMeasurement(customerId);
+  // 2. Fetch context (Order Item or Customer Profile)
+  const { data: orderItemDetails, isLoading: isLoadingItem } = useOrderItem(
+    isNewCustomerMeasurement ? undefined : orderItemId
+  );
+  const { data: customerDetails, isLoading: isLoadingCustomer } = useCustomer(urlCustomerId);
+
+  // Resolve which customer ID and Name to use
+  const effectiveCustomerId = !isNewCustomerMeasurement ? orderItemDetails?.customer?.id : urlCustomerId;
+  const customerName = !isNewCustomerMeasurement ? orderItemDetails?.customer?.name : customerDetails?.name;
+
+  // 3. Fetch latest measurements for this specific customer for the "Copy" feature
+  const { data: latestMeasurement } = useLatestCustomerMeasurement(effectiveCustomerId);
 
   const createMeasurement = useCreateMeasurementSet();
   const updateMeasurement = useUpdateMeasurementSet();
@@ -127,7 +139,7 @@ export default function Measurements() {
       design_notes: latestMeasurement.design_notes || "",
     });
 
-    toast.success(`Loaded previous measurements for ${orderItemDetails?.customers?.name || 'customer'}`);
+    toast.success(`Loaded previous measurements for ${customerName || 'customer'}`);
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -135,9 +147,12 @@ export default function Measurements() {
   };
 
   const handleSave = async () => {
-    if (!orderItemId) return;
+    // Basic validation
+    if (isNewCustomerMeasurement && !urlCustomerId) {
+      toast.error("Missing customer association.");
+      return;
+    }
 
-    // Convert string inputs back to numbers for the database
     const numericData = Object.fromEntries(
       Object.entries(formData).map(([k, v]) => [
         k,
@@ -146,14 +161,15 @@ export default function Measurements() {
     );
 
     const data = {
-      order_item_id: orderItemId,
+      order_item_id: isNewCustomerMeasurement ? null : orderItemId,
+      customer_id: effectiveCustomerId,
       measurement_profile_id: null,
       ...numericData,
       reference_images: null,
     };
 
     try {
-      if (existingMeasurement) {
+      if (existingMeasurement && !isNewCustomerMeasurement) {
         await updateMeasurement.mutateAsync({ id: existingMeasurement.id, ...data } as any);
       } else {
         await createMeasurement.mutateAsync(data as any);
@@ -164,14 +180,17 @@ export default function Measurements() {
     }
   };
 
-  if (isLoadingExisting || isLoadingItem) return (
+  if (isLoadingExisting || isLoadingItem || isLoadingCustomer) return (
     <AppLayout title="Measurements" subtitle="Loading...">
       <div className="flex justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
     </AppLayout>
   );
 
   return (
-    <AppLayout title="Measurements" subtitle={`Enter measurements for ${orderItemDetails?.customers?.name || 'Customer'}`}>
+    <AppLayout
+      title="Measurements"
+      subtitle={`Enter measurements for ${customerName || 'Customer'}`}
+    >
       <div className="max-w-4xl mx-auto space-y-6 pb-8">
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate(-1)}><ArrowLeft className="h-4 w-4 mr-2" />Back</Button>
@@ -183,7 +202,7 @@ export default function Measurements() {
               onClick={handleCopyPrevious}
             >
               <Copy className="h-4 w-4 mr-2" />
-              Copy from Previous Order
+              Copy from Previous Profile
             </Button>
           )}
         </div>

@@ -13,7 +13,8 @@ export interface MeasurementProfile {
 
 export interface MeasurementSet {
   id: string;
-  order_item_id: string;
+  order_item_id: string | null;
+  customer_id: string | null;
   measurement_profile_id: string | null;
   // Upper body
   shoulder: number | null;
@@ -70,7 +71,7 @@ export function useMeasurementSet(orderItemId: string | undefined) {
   return useQuery({
     queryKey: ["measurement_sets", orderItemId],
     queryFn: async () => {
-      if (!orderItemId) return null;
+      if (!orderItemId || orderItemId === "new") return null;
       const { data, error } = await supabase
         .from("measurement_sets")
         .select("*")
@@ -80,31 +81,27 @@ export function useMeasurementSet(orderItemId: string | undefined) {
       if (error) throw error;
       return data as MeasurementSet | null;
     },
-    enabled: !!orderItemId,
+    enabled: !!orderItemId && orderItemId !== "new",
   });
 }
 
-export function useCreateMeasurementProfile() {
-  const queryClient = useQueryClient();
+// NEW HOOK: Fetches all measurements for a customer (History)
+export function useCustomerMeasurements(customerId?: string) {
+  return useQuery({
+    queryKey: ["customer_measurements_history", customerId],
+    queryFn: async () => {
+      if (!customerId) return [];
 
-  return useMutation({
-    mutationFn: async (profile: Omit<MeasurementProfile, "id" | "created_at" | "updated_at">) => {
       const { data, error } = await supabase
-        .from("measurement_profiles")
-        .insert(profile)
-        .select()
-        .single();
+        .from("measurement_sets")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as MeasurementSet[];
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["measurement_profiles", variables.customer_id] });
-      toast.success("Measurement profile created");
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to create profile: ${error.message}`);
-    },
+    enabled: !!customerId,
   });
 }
 
@@ -113,14 +110,12 @@ export function useLatestCustomerMeasurement(customerId: string | undefined) {
     queryKey: ["latest_measurement", customerId],
     queryFn: async () => {
       if (!customerId) return null;
-      // Fetch the most recent measurement set by joining through order_items
+
+      // Updated: Check for direct customer_id link first, then fallback to order_items join
       const { data, error } = await supabase
         .from("measurement_sets")
-        .select(`
-          *,
-          order_items!inner(order_id, orders!inner(customer_id))
-        `)
-        .eq("order_items.orders.customer_id", customerId)
+        .select("*")
+        .eq("customer_id", customerId)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -145,57 +140,24 @@ export function useCreateMeasurementSet() {
 
       if (error) throw error;
 
-      // Check if all items in the order now have measurements and update order status
-      await checkAndUpdateOrderStatus(measurement.order_item_id);
+      // Only update order status if this measurement is linked to an order item
+      if (measurement.order_item_id) {
+        await checkAndUpdateOrderStatus(measurement.order_item_id);
+      }
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["measurement_sets"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_measurements_history", variables.customer_id] });
+      queryClient.invalidateQueries({ queryKey: ["latest_measurement", variables.customer_id] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["stitching_jobs"] });
       toast.success("Measurements saved successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to save measurements: ${error.message}`);
     },
   });
-}
-
-async function checkAndUpdateOrderStatus(orderItemId: string) {
-  // Get the order for this item
-  const { data: orderItem } = await supabase
-    .from("order_items")
-    .select("order_id")
-    .eq("id", orderItemId)
-    .single();
-
-  if (!orderItem) return;
-
-  // Get all items for this order
-  const { data: allItems } = await supabase
-    .from("order_items")
-    .select("id")
-    .eq("order_id", orderItem.order_id);
-
-  if (!allItems || allItems.length === 0) return;
-
-  // Check if all items have measurements
-  const { data: measurements } = await supabase
-    .from("measurement_sets")
-    .select("order_item_id")
-    .in("order_item_id", allItems.map((i) => i.id));
-
-  const allMeasured = measurements && measurements.length >= allItems.length;
-
-  if (allMeasured) {
-    // Update order status to in_production
-    await supabase
-      .from("orders")
-      .update({ status: "in_production" })
-      .eq("id", orderItem.order_id)
-      .eq("status", "measurement_pending");
-  }
 }
 
 export function useUpdateMeasurementSet() {
@@ -213,12 +175,46 @@ export function useUpdateMeasurementSet() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["measurement_sets"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_measurements_history", data.customer_id] });
+      queryClient.invalidateQueries({ queryKey: ["latest_measurement", data.customer_id] });
       toast.success("Measurements updated successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to update measurements: ${error.message}`);
     },
   });
+}
+
+async function checkAndUpdateOrderStatus(orderItemId: string) {
+  const { data: orderItem } = await supabase
+    .from("order_items")
+    .select("order_id")
+    .eq("id", orderItemId)
+    .single();
+
+  if (!orderItem) return;
+
+  const { data: allItems } = await supabase
+    .from("order_items")
+    .select("id")
+    .eq("order_id", orderItem.order_id);
+
+  if (!allItems || allItems.length === 0) return;
+
+  const { data: measurements } = await supabase
+    .from("measurement_sets")
+    .select("order_item_id")
+    .in("order_item_id", allItems.map((i) => i.id));
+
+  const allMeasured = measurements && measurements.length >= allItems.length;
+
+  if (allMeasured) {
+    await supabase
+      .from("orders")
+      .update({ status: "in_production" })
+      .eq("id", orderItem.order_id)
+      .eq("status", "measurement_pending");
+  }
 }
