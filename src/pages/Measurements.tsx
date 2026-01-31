@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Save, ArrowLeft, Copy } from "lucide-react";
+import { Loader2, Save, ArrowLeft, Copy, Ruler } from "lucide-react";
 import {
   useMeasurementSet,
   useCreateMeasurementSet,
@@ -16,7 +16,7 @@ import {
 } from "@/hooks/useMeasurements";
 import { useOrderItem } from "@/hooks/useOrders";
 import { useCustomer } from "@/hooks/useCustomers";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 type FitType = "regular" | "slim" | "comfort";
@@ -26,21 +26,41 @@ interface MeasurementInputProps {
   field: string;
   value: string;
   onChange: (field: string, val: string) => void;
+  index: number;
 }
 
-const MeasurementInput = ({ label, field, value, onChange }: MeasurementInputProps) => (
-  <div className="space-y-1">
-    <Label className="text-xs">{label}</Label>
-    <Input
-      type="number"
-      step="0.1"
-      value={value}
-      onChange={(e) => onChange(field, e.target.value)}
-      placeholder="0"
-      className="h-9"
-    />
-  </div>
-);
+const MeasurementInput = ({ label, field, value, onChange, index }: MeasurementInputProps) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      // Find the next input in the DOM with the data-index attribute
+      const nextInput = document.querySelector(`[data-m-index="${index + 1}"]`) as HTMLInputElement;
+      if (nextInput) {
+        nextInput.focus();
+        nextInput.select(); // Select text for quick overwriting
+      }
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-muted last:border-0 group hover:bg-muted/30 px-2 transition-colors">
+      <Label className="text-sm font-medium text-muted-foreground group-hover:text-foreground">{label}</Label>
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          step="0.1"
+          data-m-index={index}
+          value={value}
+          onChange={(e) => onChange(field, e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="0"
+          className="h-9 w-24 text-right font-bold focus:ring-primary"
+        />
+        <span className="text-[10px] text-muted-foreground w-4">in</span>
+      </div>
+    </div>
+  );
+};
 
 export default function Measurements() {
   const { orderItemId } = useParams();
@@ -50,10 +70,7 @@ export default function Measurements() {
   const isNewCustomerMeasurement = orderItemId === "new";
   const urlCustomerId = searchParams.get("customerId");
 
-  // 1. Fetch Dynamic Configuration
   const { data: config, isLoading: isLoadingConfig } = useMeasurementConfig();
-
-  // 2. Data Fetching Hooks
   const { data: existingMeasurement, isLoading: isLoadingExisting } = useMeasurementSet(
     isNewCustomerMeasurement ? undefined : orderItemId
   );
@@ -66,28 +83,23 @@ export default function Measurements() {
   const customerName = !isNewCustomerMeasurement ? orderItemDetails?.customer?.name : customerDetails?.name;
 
   const { data: latestMeasurement } = useLatestCustomerMeasurement(effectiveCustomerId);
-
   const createMeasurement = useCreateMeasurementSet();
   const updateMeasurement = useUpdateMeasurementSet();
 
-  // Use a generic record for dynamic fields
   const [formData, setFormData] = useState<Record<string, any>>({
     fit_type: "regular" as FitType,
     body_posture: "",
     design_notes: "",
   });
 
-  // Load existing or latest data into form
   useEffect(() => {
-    const dataToLoad = existingMeasurement || null;
-    if (dataToLoad) {
+    if (existingMeasurement) {
       setFormData((prev) => ({
         ...prev,
-        ...dataToLoad,
-        // Ensure strings for inputs
-        fit_type: dataToLoad.fit_type || "regular",
-        body_posture: dataToLoad.body_posture || "",
-        design_notes: dataToLoad.design_notes || "",
+        ...existingMeasurement,
+        fit_type: existingMeasurement.fit_type || "regular",
+        body_posture: existingMeasurement.body_posture || "",
+        design_notes: existingMeasurement.design_notes || "",
       }));
     }
   }, [existingMeasurement]);
@@ -97,11 +109,8 @@ export default function Measurements() {
       toast.error("No previous measurements found");
       return;
     }
-    setFormData((prev) => ({
-      ...prev,
-      ...latestMeasurement
-    }));
-    toast.success(`Loaded previous measurements for ${customerName}`);
+    setFormData((prev) => ({ ...prev, ...latestMeasurement }));
+    toast.success(`Loaded previous measurements`);
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -114,7 +123,6 @@ export default function Measurements() {
       return;
     }
 
-    // Process data: numbers for measurements, strings for notes
     const processedData = Object.fromEntries(
       Object.entries(formData).map(([k, v]) => {
         if (["fit_type", "body_posture", "design_notes"].includes(k)) return [k, v];
@@ -142,97 +150,139 @@ export default function Measurements() {
 
   if (isLoadingExisting || isLoadingItem || isLoadingCustomer || isLoadingConfig) {
     return (
-      <AppLayout title="Measurements" subtitle="Loading Configuration...">
+      <AppLayout title="Measurements" subtitle="Syncing settings...">
         <div className="flex justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
       </AppLayout>
     );
   }
 
-  // Filter config by categories
   const upperBodyFields = config?.filter(f => f.category === 'upper_body') || [];
   const lowerBodyFields = config?.filter(f => f.category === 'lower_body') || [];
 
   return (
     <AppLayout title="Measurements" subtitle={`Tailoring Profile: ${customerName || 'Customer'}`}>
-      <div className="max-w-4xl mx-auto space-y-6 pb-8">
+      <div className="max-w-5xl mx-auto space-y-6 pb-20 animate-in fade-in duration-500">
+
+        {/* Top Header Actions */}
         <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate(-1)}><ArrowLeft className="h-4 w-4 mr-2" />Back</Button>
+          <Button variant="ghost" onClick={() => navigate(-1)} className="hover:bg-muted">
+            <ArrowLeft className="h-4 w-4 mr-2" />Back
+          </Button>
 
           {latestMeasurement && (
-            <Button variant="outline" className="border-dashed border-primary/50 bg-primary/5" onClick={handleCopyPrevious}>
-              <Copy className="h-4 w-4 mr-2" /> Copy Previous
+            <Button variant="outline" className="border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all" onClick={handleCopyPrevious}>
+              <Copy className="h-4 w-4 mr-2" /> Copy Previous Profile
             </Button>
           )}
         </div>
 
-        {/* Dynamic Upper Body Section */}
-        {upperBodyFields.length > 0 && (
-          <Card>
-            <CardHeader><CardTitle>Upper Body (inches)</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {upperBodyFields.map((field) => (
-                <MeasurementInput
-                  key={field.name}
-                  label={field.label}
-                  field={field.name}
-                  value={formData[field.name]?.toString() || ""}
-                  onChange={handleInputChange}
-                />
-              ))}
+        {/* Vertical Two-Column Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+
+          {/* Column 1: Upper Body */}
+          <Card className="shadow-sm border-primary/10 overflow-hidden">
+            <CardHeader className="bg-primary/5 py-3 border-b">
+              <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                <Ruler className="h-4 w-4" /> Upper Body
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-2">
+              <div className="flex flex-col">
+                {upperBodyFields.map((field, idx) => (
+                  <MeasurementInput
+                    key={field.name}
+                    label={field.label}
+                    field={field.name}
+                    value={formData[field.name]?.toString() || ""}
+                    onChange={handleInputChange}
+                    index={idx} // Starts from 0
+                  />
+                ))}
+              </div>
             </CardContent>
           </Card>
-        )}
 
-        {/* Dynamic Lower Body Section */}
-        {lowerBodyFields.length > 0 && (
-          <Card>
-            <CardHeader><CardTitle>Lower Body (inches)</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {lowerBodyFields.map((field) => (
-                <MeasurementInput
-                  key={field.name}
-                  label={field.label}
-                  field={field.name}
-                  value={formData[field.name]?.toString() || ""}
-                  onChange={handleInputChange}
-                />
-              ))}
-            </CardContent>
-          </Card>
-        )}
+          {/* Column 2: Lower Body & Notes */}
+          <div className="space-y-6">
+            <Card className="shadow-sm border-primary/10 overflow-hidden">
+              <CardHeader className="bg-primary/5 py-3 border-b">
+                <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                  <Ruler className="h-4 w-4" /> Lower Body
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-2">
+                <div className="flex flex-col">
+                  {lowerBodyFields.map((field, idx) => (
+                    <MeasurementInput
+                      key={field.name}
+                      label={field.label}
+                      field={field.name}
+                      value={formData[field.name]?.toString() || ""}
+                      onChange={handleInputChange}
+                      // Continue indexing from where upper body left off
+                      index={upperBodyFields.length + idx}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader><CardTitle>Fit & Notes</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Fit Type</Label>
-                <Select value={formData.fit_type} onValueChange={(v) => handleInputChange("fit_type", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="regular">Regular</SelectItem>
-                    <SelectItem value="slim">Slim</SelectItem>
-                    <SelectItem value="comfort">Comfort</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Body Posture</Label>
-                <Input value={formData.body_posture} onChange={(e) => handleInputChange("body_posture", e.target.value)} placeholder="Normal, Erect, Stooped" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Design Notes</Label>
-              <Textarea value={formData.design_notes} onChange={(e) => handleInputChange("design_notes", e.target.value)} rows={3} />
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="shadow-sm border-primary/10">
+              <CardHeader className="py-3 border-b bg-muted/30">
+                <CardTitle className="text-sm font-bold uppercase tracking-widest">Fit & Notes</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Fit Type</Label>
+                    <Select value={formData.fit_type} onValueChange={(v) => handleInputChange("fit_type", v)}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="regular">Regular</SelectItem>
+                        <SelectItem value="slim">Slim</SelectItem>
+                        <SelectItem value="comfort">Comfort</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Body Posture</Label>
+                    <Input
+                      data-m-index={upperBodyFields.length + lowerBodyFields.length}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          document.getElementById('design-notes-area')?.focus();
+                        }
+                      }}
+                      value={formData.body_posture}
+                      onChange={(e) => handleInputChange("body_posture", e.target.value)}
+                      placeholder="e.g. Erect"
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Design Notes</Label>
+                  <Textarea
+                    id="design-notes-area"
+                    value={formData.design_notes}
+                    onChange={(e) => handleInputChange("design_notes", e.target.value)}
+                    rows={4}
+                    className="resize-none"
+                    placeholder="Add specific tailoring details..."
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
-        <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={createMeasurement.isPending || updateMeasurement.isPending}>
+        {/* Action Bar */}
+        <div className="flex justify-end gap-3 pt-6 border-t">
+          <Button variant="outline" onClick={() => navigate(-1)} className="px-8">Cancel</Button>
+          <Button onClick={handleSave} disabled={createMeasurement.isPending || updateMeasurement.isPending} className="px-8 shadow-md">
             {(createMeasurement.isPending || updateMeasurement.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            <Save className="h-4 w-4 mr-2" />Save
+            <Save className="h-4 w-4 mr-2" />Save Profile
           </Button>
         </div>
       </div>
