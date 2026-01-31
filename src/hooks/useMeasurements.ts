@@ -16,62 +16,44 @@ export interface MeasurementSet {
   order_item_id: string | null;
   customer_id: string | null;
   measurement_profile_id: string | null;
-  // Upper body
-  shoulder: number | null;
-  chest: number | null;
-  mid_chest: number | null;
-  stomach: number | null;
-  hip_upper: number | null;
-  neck: number | null;
-  arm: number | null;
-  elbow: number | null;
-  cuff: number | null;
-  c_front: number | null;
-  c_back: number | null;
-  h_back: number | null;
-  sleeve: number | null;
-  // Lower body
-  high_waist: number | null;
-  low_waist: number | null;
-  hip_lower: number | null;
-  inseam: number | null;
-  thigh: number | null;
-  knee: number | null;
-  calf: number | null;
-  fork: number | null;
-  bottom: number | null;
-  // Fit & notes
   fit_type: "regular" | "slim" | "comfort";
   body_posture: string | null;
   design_notes: string | null;
   reference_images: string[] | null;
+  metadata?: Record<string, any>; // The new flexible storage
   created_at: string;
   updated_at: string;
+  [key: string]: any; // Allows dynamic access to flattened fields like .shoulder
 }
 
-export function useMeasurementProfiles(customerId: string | undefined) {
+// 1. Hook to fetch the Dynamic Configuration from Settings
+// Inside src/hooks/useMeasurements.ts
+export function useMeasurementConfig(onlyActive = false) {
   return useQuery({
-    queryKey: ["measurement_profiles", customerId],
+    queryKey: ["measurement_config", onlyActive],
     queryFn: async () => {
-      if (!customerId) return [];
-      const { data, error } = await supabase
-        .from("measurement_profiles")
+      let query = supabase
+        .from("measurement_configs")
         .select("*")
-        .eq("customer_id", customerId)
-        .order("created_at", { ascending: false });
+        .order("sort_order", { ascending: true });
 
+      if (onlyActive) {
+        query = query.eq("is_active", true);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
-      return data as MeasurementProfile[];
+      return data;
     },
-    enabled: !!customerId,
   });
 }
 
+// 2. Fetch a specific set (with flattening logic to prevent breaking UI)
 export function useMeasurementSet(orderItemId: string | undefined) {
   return useQuery({
     queryKey: ["measurement_sets", orderItemId],
+    enabled: !!orderItemId && orderItemId !== "new",
     queryFn: async () => {
-      if (!orderItemId || orderItemId === "new") return null;
       const { data, error } = await supabase
         .from("measurement_sets")
         .select("*")
@@ -79,78 +61,59 @@ export function useMeasurementSet(orderItemId: string | undefined) {
         .maybeSingle();
 
       if (error) throw error;
-      return data as MeasurementSet | null;
+      if (!data) return null;
+
+      // Merge metadata fields back to the top level so formData.shoulder still works
+      return { ...data, ...data.metadata } as MeasurementSet;
     },
-    enabled: !!orderItemId && orderItemId !== "new",
   });
 }
 
-// NEW HOOK: Fetches all measurements for a customer (History)
-export function useCustomerMeasurements(customerId?: string) {
-  return useQuery({
-    queryKey: ["customer_measurements_history", customerId],
-    queryFn: async () => {
-      if (!customerId) return [];
-
-      const { data, error } = await supabase
-        .from("measurement_sets")
-        .select("*")
-        .eq("customer_id", customerId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data as MeasurementSet[];
-    },
-    enabled: !!customerId,
-  });
-}
-
-export function useLatestCustomerMeasurement(customerId: string | undefined) {
-  return useQuery({
-    queryKey: ["latest_measurement", customerId],
-    queryFn: async () => {
-      if (!customerId) return null;
-
-      // Updated: Check for direct customer_id link first, then fallback to order_items join
-      const { data, error } = await supabase
-        .from("measurement_sets")
-        .select("*")
-        .eq("customer_id", customerId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data as MeasurementSet | null;
-    },
-    enabled: !!customerId,
-  });
-}
-
+// 3. Create Hook (Strategically saves numeric fields into metadata)
 export function useCreateMeasurementSet() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (measurement: Omit<MeasurementSet, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (measurementData: any) => {
+      // Destructure standard columns from dynamic measurement values
+      const {
+        customer_id,
+        order_item_id,
+        measurement_profile_id,
+        fit_type,
+        body_posture,
+        design_notes,
+        reference_images,
+        ...dynamicValues
+      } = measurementData;
+
       const { data, error } = await supabase
         .from("measurement_sets")
-        .insert(measurement)
+        .insert([{
+          customer_id,
+          order_item_id,
+          measurement_profile_id,
+          fit_type,
+          body_posture,
+          design_notes,
+          reference_images,
+          metadata: dynamicValues // Industry-standard: store measurements here
+        }])
         .select()
         .single();
 
       if (error) throw error;
 
-      // Only update order status if this measurement is linked to an order item
-      if (measurement.order_item_id) {
-        await checkAndUpdateOrderStatus(measurement.order_item_id);
+      if (order_item_id) {
+        await checkAndUpdateOrderStatus(order_item_id);
       }
 
       return data;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["measurement_sets"] });
-      queryClient.invalidateQueries({ queryKey: ["customer_measurements_history", variables.customer_id] });
-      queryClient.invalidateQueries({ queryKey: ["latest_measurement", variables.customer_id] });
+      queryClient.invalidateQueries({ queryKey: ["customer_measurements_history", data.customer_id] });
+      queryClient.invalidateQueries({ queryKey: ["latest_measurement", data.customer_id] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       toast.success("Measurements saved successfully");
     },
@@ -160,14 +123,33 @@ export function useCreateMeasurementSet() {
   });
 }
 
+// 4. Update Hook (Maintains dynamic field support)
 export function useUpdateMeasurementSet() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...measurement }: Partial<MeasurementSet> & { id: string }) => {
+    mutationFn: async ({ id, ...measurementData }: any) => {
+      const {
+        customer_id,
+        order_item_id,
+        measurement_profile_id,
+        fit_type,
+        body_posture,
+        design_notes,
+        reference_images,
+        metadata, // Ignore existing metadata field if passed
+        ...dynamicValues
+      } = measurementData;
+
       const { data, error } = await supabase
         .from("measurement_sets")
-        .update(measurement)
+        .update({
+          fit_type,
+          body_posture,
+          design_notes,
+          reference_images,
+          metadata: dynamicValues // Overwrite metadata with current form values
+        })
         .eq("id", id)
         .select()
         .single();
@@ -182,11 +164,50 @@ export function useUpdateMeasurementSet() {
       toast.success("Measurements updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update measurements: ${error.message}`);
+      toast.error(`Failed to update: ${error.message}`);
     },
   });
 }
 
+// 5. History and Latest hooks (With flattening)
+export function useCustomerMeasurements(customerId?: string) {
+  return useQuery({
+    queryKey: ["customer_measurements_history", customerId],
+    enabled: !!customerId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("measurement_sets")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return (data || []).map(m => ({ ...m, ...m.metadata })) as MeasurementSet[];
+    },
+  });
+}
+
+export function useLatestCustomerMeasurement(customerId: string | undefined) {
+  return useQuery({
+    queryKey: ["latest_measurement", customerId],
+    enabled: !!customerId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("measurement_sets")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) return null;
+      return { ...data, ...data.metadata } as MeasurementSet;
+    },
+  });
+}
+
+// Helper: Auto-update order status
 async function checkAndUpdateOrderStatus(orderItemId: string) {
   const { data: orderItem } = await supabase
     .from("order_items")

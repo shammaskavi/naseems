@@ -7,7 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Save, ArrowLeft, Copy } from "lucide-react";
-import { useMeasurementSet, useCreateMeasurementSet, useUpdateMeasurementSet, useLatestCustomerMeasurement } from "@/hooks/useMeasurements";
+import {
+  useMeasurementSet,
+  useCreateMeasurementSet,
+  useUpdateMeasurementSet,
+  useLatestCustomerMeasurement,
+  useMeasurementConfig
+} from "@/hooks/useMeasurements";
 import { useOrderItem } from "@/hooks/useOrders";
 import { useCustomer } from "@/hooks/useCustomers";
 import { useState, useEffect } from "react";
@@ -41,105 +47,61 @@ export default function Measurements() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Identify if this is a fresh customer profile entry
   const isNewCustomerMeasurement = orderItemId === "new";
   const urlCustomerId = searchParams.get("customerId");
 
-  // 1. Fetch existing measurement (Only if not "new")
+  // 1. Fetch Dynamic Configuration
+  const { data: config, isLoading: isLoadingConfig } = useMeasurementConfig();
+
+  // 2. Data Fetching Hooks
   const { data: existingMeasurement, isLoading: isLoadingExisting } = useMeasurementSet(
     isNewCustomerMeasurement ? undefined : orderItemId
   );
-
-  // 2. Fetch context (Order Item or Customer Profile)
   const { data: orderItemDetails, isLoading: isLoadingItem } = useOrderItem(
     isNewCustomerMeasurement ? undefined : orderItemId
   );
   const { data: customerDetails, isLoading: isLoadingCustomer } = useCustomer(urlCustomerId);
 
-  // Resolve which customer ID and Name to use
   const effectiveCustomerId = !isNewCustomerMeasurement ? orderItemDetails?.customer?.id : urlCustomerId;
   const customerName = !isNewCustomerMeasurement ? orderItemDetails?.customer?.name : customerDetails?.name;
 
-  // 3. Fetch latest measurements for this specific customer for the "Copy" feature
   const { data: latestMeasurement } = useLatestCustomerMeasurement(effectiveCustomerId);
 
   const createMeasurement = useCreateMeasurementSet();
   const updateMeasurement = useUpdateMeasurementSet();
 
-  const [formData, setFormData] = useState({
-    shoulder: "", chest: "", mid_chest: "", stomach: "", hip_upper: "", neck: "", arm: "", elbow: "", cuff: "",
-    c_front: "", c_back: "", h_back: "", sleeve: "", high_waist: "", low_waist: "", hip_lower: "", inseam: "",
-    thigh: "", knee: "", calf: "", fork: "", bottom: "", fit_type: "regular" as FitType, body_posture: "", design_notes: "",
+  // Use a generic record for dynamic fields
+  const [formData, setFormData] = useState<Record<string, any>>({
+    fit_type: "regular" as FitType,
+    body_posture: "",
+    design_notes: "",
   });
 
-  // Effect to load existing measurements if editing
+  // Load existing or latest data into form
   useEffect(() => {
-    if (existingMeasurement) {
-      setFormData({
-        shoulder: existingMeasurement.shoulder?.toString() || "",
-        chest: existingMeasurement.chest?.toString() || "",
-        mid_chest: existingMeasurement.mid_chest?.toString() || "",
-        stomach: existingMeasurement.stomach?.toString() || "",
-        hip_upper: existingMeasurement.hip_upper?.toString() || "",
-        neck: existingMeasurement.neck?.toString() || "",
-        arm: existingMeasurement.arm?.toString() || "",
-        elbow: existingMeasurement.elbow?.toString() || "",
-        cuff: existingMeasurement.cuff?.toString() || "",
-        c_front: existingMeasurement.c_front?.toString() || "",
-        c_back: existingMeasurement.c_back?.toString() || "",
-        h_back: existingMeasurement.h_back?.toString() || "",
-        sleeve: existingMeasurement.sleeve?.toString() || "",
-        high_waist: existingMeasurement.high_waist?.toString() || "",
-        low_waist: existingMeasurement.low_waist?.toString() || "",
-        hip_lower: existingMeasurement.hip_lower?.toString() || "",
-        inseam: existingMeasurement.inseam?.toString() || "",
-        thigh: existingMeasurement.thigh?.toString() || "",
-        knee: existingMeasurement.knee?.toString() || "",
-        calf: existingMeasurement.calf?.toString() || "",
-        fork: existingMeasurement.fork?.toString() || "",
-        bottom: existingMeasurement.bottom?.toString() || "",
-        fit_type: (existingMeasurement.fit_type as FitType) || "regular",
-        body_posture: existingMeasurement.body_posture || "",
-        design_notes: existingMeasurement.design_notes || "",
-      });
+    const dataToLoad = existingMeasurement || null;
+    if (dataToLoad) {
+      setFormData((prev) => ({
+        ...prev,
+        ...dataToLoad,
+        // Ensure strings for inputs
+        fit_type: dataToLoad.fit_type || "regular",
+        body_posture: dataToLoad.body_posture || "",
+        design_notes: dataToLoad.design_notes || "",
+      }));
     }
   }, [existingMeasurement]);
 
   const handleCopyPrevious = () => {
     if (!latestMeasurement) {
-      toast.error("No previous measurements found for this customer");
+      toast.error("No previous measurements found");
       return;
     }
-
-    setFormData({
-      shoulder: latestMeasurement.shoulder?.toString() || "",
-      chest: latestMeasurement.chest?.toString() || "",
-      mid_chest: latestMeasurement.mid_chest?.toString() || "",
-      stomach: latestMeasurement.stomach?.toString() || "",
-      hip_upper: latestMeasurement.hip_upper?.toString() || "",
-      neck: latestMeasurement.neck?.toString() || "",
-      arm: latestMeasurement.arm?.toString() || "",
-      elbow: latestMeasurement.elbow?.toString() || "",
-      cuff: latestMeasurement.cuff?.toString() || "",
-      c_front: latestMeasurement.c_front?.toString() || "",
-      c_back: latestMeasurement.c_back?.toString() || "",
-      h_back: latestMeasurement.h_back?.toString() || "",
-      sleeve: latestMeasurement.sleeve?.toString() || "",
-      high_waist: latestMeasurement.high_waist?.toString() || "",
-      low_waist: latestMeasurement.low_waist?.toString() || "",
-      hip_lower: latestMeasurement.hip_lower?.toString() || "",
-      inseam: latestMeasurement.inseam?.toString() || "",
-      thigh: latestMeasurement.thigh?.toString() || "",
-      knee: latestMeasurement.knee?.toString() || "",
-      calf: latestMeasurement.calf?.toString() || "",
-      fork: latestMeasurement.fork?.toString() || "",
-      bottom: latestMeasurement.bottom?.toString() || "",
-      fit_type: (latestMeasurement.fit_type as FitType) || "regular",
-      body_posture: latestMeasurement.body_posture || "",
-      design_notes: latestMeasurement.design_notes || "",
-    });
-
-    toast.success(`Loaded previous measurements for ${customerName || 'customer'}`);
+    setFormData((prev) => ({
+      ...prev,
+      ...latestMeasurement
+    }));
+    toast.success(`Loaded previous measurements for ${customerName}`);
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -147,99 +109,97 @@ export default function Measurements() {
   };
 
   const handleSave = async () => {
-    // Basic validation
     if (isNewCustomerMeasurement && !urlCustomerId) {
       toast.error("Missing customer association.");
       return;
     }
 
-    const numericData = Object.fromEntries(
-      Object.entries(formData).map(([k, v]) => [
-        k,
-        v === "" ? null : (["fit_type", "body_posture", "design_notes"].includes(k) ? v : parseFloat(v as string))
-      ])
+    // Process data: numbers for measurements, strings for notes
+    const processedData = Object.fromEntries(
+      Object.entries(formData).map(([k, v]) => {
+        if (["fit_type", "body_posture", "design_notes"].includes(k)) return [k, v];
+        return [k, v === "" ? null : parseFloat(v)];
+      })
     );
 
-    const data = {
+    const payload = {
       order_item_id: isNewCustomerMeasurement ? null : orderItemId,
       customer_id: effectiveCustomerId,
-      measurement_profile_id: null,
-      ...numericData,
-      reference_images: null,
+      ...processedData,
     };
 
     try {
       if (existingMeasurement && !isNewCustomerMeasurement) {
-        await updateMeasurement.mutateAsync({ id: existingMeasurement.id, ...data } as any);
+        await updateMeasurement.mutateAsync({ id: existingMeasurement.id, ...payload } as any);
       } else {
-        await createMeasurement.mutateAsync(data as any);
+        await createMeasurement.mutateAsync(payload as any);
       }
       navigate(-1);
     } catch (error) {
-      console.error("Failed to save measurements:", error);
+      console.error("Save failed:", error);
     }
   };
 
-  if (isLoadingExisting || isLoadingItem || isLoadingCustomer) return (
-    <AppLayout title="Measurements" subtitle="Loading...">
-      <div className="flex justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-    </AppLayout>
-  );
+  if (isLoadingExisting || isLoadingItem || isLoadingCustomer || isLoadingConfig) {
+    return (
+      <AppLayout title="Measurements" subtitle="Loading Configuration...">
+        <div className="flex justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+      </AppLayout>
+    );
+  }
+
+  // Filter config by categories
+  const upperBodyFields = config?.filter(f => f.category === 'upper_body') || [];
+  const lowerBodyFields = config?.filter(f => f.category === 'lower_body') || [];
 
   return (
-    <AppLayout
-      title="Measurements"
-      subtitle={`Enter measurements for ${customerName || 'Customer'}`}
-    >
+    <AppLayout title="Measurements" subtitle={`Tailoring Profile: ${customerName || 'Customer'}`}>
       <div className="max-w-4xl mx-auto space-y-6 pb-8">
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate(-1)}><ArrowLeft className="h-4 w-4 mr-2" />Back</Button>
 
           {latestMeasurement && (
-            <Button
-              variant="outline"
-              className="border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10"
-              onClick={handleCopyPrevious}
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy from Previous Profile
+            <Button variant="outline" className="border-dashed border-primary/50 bg-primary/5" onClick={handleCopyPrevious}>
+              <Copy className="h-4 w-4 mr-2" /> Copy Previous
             </Button>
           )}
         </div>
 
-        <Card>
-          <CardHeader><CardTitle>Upper Body (inches)</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <MeasurementInput label="Shoulder" field="shoulder" value={formData.shoulder} onChange={handleInputChange} />
-            <MeasurementInput label="Chest" field="chest" value={formData.chest} onChange={handleInputChange} />
-            <MeasurementInput label="Mid Chest" field="mid_chest" value={formData.mid_chest} onChange={handleInputChange} />
-            <MeasurementInput label="Stomach" field="stomach" value={formData.stomach} onChange={handleInputChange} />
-            <MeasurementInput label="Hip" field="hip_upper" value={formData.hip_upper} onChange={handleInputChange} />
-            <MeasurementInput label="Neck" field="neck" value={formData.neck} onChange={handleInputChange} />
-            <MeasurementInput label="Arm" field="arm" value={formData.arm} onChange={handleInputChange} />
-            <MeasurementInput label="Elbow" field="elbow" value={formData.elbow} onChange={handleInputChange} />
-            <MeasurementInput label="Cuff" field="cuff" value={formData.cuff} onChange={handleInputChange} />
-            <MeasurementInput label="C-Front" field="c_front" value={formData.c_front} onChange={handleInputChange} />
-            <MeasurementInput label="C-Back" field="c_back" value={formData.c_back} onChange={handleInputChange} />
-            <MeasurementInput label="H-Back" field="h_back" value={formData.h_back} onChange={handleInputChange} />
-            <MeasurementInput label="Sleeve" field="sleeve" value={formData.sleeve} onChange={handleInputChange} />
-          </CardContent>
-        </Card>
+        {/* Dynamic Upper Body Section */}
+        {upperBodyFields.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle>Upper Body (inches)</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {upperBodyFields.map((field) => (
+                <MeasurementInput
+                  key={field.name}
+                  label={field.label}
+                  field={field.name}
+                  value={formData[field.name]?.toString() || ""}
+                  onChange={handleInputChange}
+                />
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader><CardTitle>Lower Body (inches)</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <MeasurementInput label="High Waist" field="high_waist" value={formData.high_waist} onChange={handleInputChange} />
-            <MeasurementInput label="Low Waist" field="low_waist" value={formData.low_waist} onChange={handleInputChange} />
-            <MeasurementInput label="Hip" field="hip_lower" value={formData.hip_lower} onChange={handleInputChange} />
-            <MeasurementInput label="Inseam" field="inseam" value={formData.inseam} onChange={handleInputChange} />
-            <MeasurementInput label="Thigh" field="thigh" value={formData.thigh} onChange={handleInputChange} />
-            <MeasurementInput label="Knee" field="knee" value={formData.knee} onChange={handleInputChange} />
-            <MeasurementInput label="Calf" field="calf" value={formData.calf} onChange={handleInputChange} />
-            <MeasurementInput label="Fork" field="fork" value={formData.fork} onChange={handleInputChange} />
-            <MeasurementInput label="Bottom" field="bottom" value={formData.bottom} onChange={handleInputChange} />
-          </CardContent>
-        </Card>
+        {/* Dynamic Lower Body Section */}
+        {lowerBodyFields.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle>Lower Body (inches)</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {lowerBodyFields.map((field) => (
+                <MeasurementInput
+                  key={field.name}
+                  label={field.label}
+                  field={field.name}
+                  value={formData[field.name]?.toString() || ""}
+                  onChange={handleInputChange}
+                />
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader><CardTitle>Fit & Notes</CardTitle></CardHeader>
@@ -247,7 +207,7 @@ export default function Measurements() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Fit Type</Label>
-                <Select value={formData.fit_type} onValueChange={(v: FitType) => setFormData({ ...formData, fit_type: v })}>
+                <Select value={formData.fit_type} onValueChange={(v) => handleInputChange("fit_type", v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="regular">Regular</SelectItem>
@@ -258,12 +218,12 @@ export default function Measurements() {
               </div>
               <div className="space-y-2">
                 <Label>Body Posture</Label>
-                <Input value={formData.body_posture} onChange={(e) => setFormData({ ...formData, body_posture: e.target.value })} placeholder="Normal, Erect, Stooped" />
+                <Input value={formData.body_posture} onChange={(e) => handleInputChange("body_posture", e.target.value)} placeholder="Normal, Erect, Stooped" />
               </div>
             </div>
             <div className="space-y-2">
               <Label>Design Notes</Label>
-              <Textarea value={formData.design_notes} onChange={(e) => setFormData({ ...formData, design_notes: e.target.value })} rows={3} />
+              <Textarea value={formData.design_notes} onChange={(e) => handleInputChange("design_notes", e.target.value)} rows={3} />
             </div>
           </CardContent>
         </Card>
@@ -272,7 +232,7 @@ export default function Measurements() {
           <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
           <Button onClick={handleSave} disabled={createMeasurement.isPending || updateMeasurement.isPending}>
             {(createMeasurement.isPending || updateMeasurement.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            <Save className="h-4 w-4 mr-2" />Save Measurements
+            <Save className="h-4 w-4 mr-2" />Save
           </Button>
         </div>
       </div>
