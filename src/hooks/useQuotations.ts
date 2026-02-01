@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+
+
 
 export interface QuotationItem {
   id: string;
@@ -213,6 +216,34 @@ export function useUpdateQuotationStatus() {
     },
     onError: (error: Error) => {
       toast.error(`Failed to update status: ${error.message}`);
+    },
+  });
+}
+
+export function useDeleteQuotation() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("quotations")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quotations"] });
+      queryClient.invalidateQueries({ queryKey: ["stitching-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+
+      toast.success("Quotation and all related records deleted permanently");
+      navigate("/quotations");
+    },
+    onError: (error: Error) => {
+      toast.error(`Deletion failed: ${error.message}`);
     },
   });
 }

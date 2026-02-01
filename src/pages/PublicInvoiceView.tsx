@@ -14,7 +14,7 @@ export default function PublicInvoiceView() {
     const { data: invoice, isLoading, error } = useQuery({
         queryKey: ["public_invoice", token],
         queryFn: async () => {
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from("invoices")
                 .select(`
           *,

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,9 +42,10 @@ import {
 import { cn } from "@/lib/utils";
 import { useCustomers, useCreateCustomer } from "@/hooks/useCustomers";
 import { useProducts } from "@/hooks/useProducts";
-import { useQuotation, useCreateQuotation, useUpdateQuotation } from "@/hooks/useQuotations";
+import { useQuotation, useCreateQuotation, useUpdateQuotation, useDeleteQuotation } from "@/hooks/useQuotations";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface QuotationItem {
   id: string;
@@ -85,6 +87,9 @@ export default function QuotationBuilder() {
   const [validDays, setValidDays] = useState(15);
   const [deliveryDate, setDeliveryDate] = useState<string>("");
 
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const deleteQuotation = useDeleteQuotation();
+
   const { data: customers = [] } = useCustomers();
   const { data: products = [] } = useProducts(true);
   const { data: existingQuotation, isLoading: isLoadingQuotation } = useQuotation(id);
@@ -99,7 +104,7 @@ export default function QuotationBuilder() {
       setSelectedCustomerId(existingQuotation.customer_id);
       setNotes(existingQuotation.notes || "");
       setDiscountPercent(existingQuotation.discount_value || 0);
-      setDeliveryDate(existingQuotation.delivery_date || ""); 
+      setDeliveryDate(existingQuotation.delivery_date || "");
 
 
       if (existingQuotation.quotation_items && existingQuotation.quotation_items.length > 0) {
@@ -577,6 +582,17 @@ export default function QuotationBuilder() {
         </div>
 
         {/* Actions */}
+        {id && (
+          <Button
+            variant="destructive"
+            type="button"
+            onClick={() => setShowDeleteDialog(true)}
+            disabled={deleteQuotation.isPending}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Permanently
+          </Button>
+        )}
         {!isLocked && (
           <div className="flex flex-wrap gap-3 justify-end pt-4 border-t border-border">
             <Button variant="outline" onClick={() => navigate("/quotations")}>
@@ -603,6 +619,42 @@ export default function QuotationBuilder() {
           </div>
         )}
       </div>
+
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="border-destructive/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Permanent Deletion
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                You are about to permanently delete <strong>{existingQuotation?.quotation_number}</strong>.
+              </p>
+              <div className="bg-destructive/10 p-3 rounded-md text-destructive text-xs space-y-1">
+                <p className="font-bold uppercase">This will also permanently delete:</p>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>All associated line items</li>
+                  <li>The linked Order record (if any)</li>
+                  <li>Active Stitching Jobs for this order</li>
+                  <li>Invoices and Payment records</li>
+                </ul>
+              </div>
+              <p className="text-sm">This action is irreversible and cannot be undone.</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Quotation</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteQuotation.mutate(id!)}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {deleteQuotation.isPending ? "Deleting Everything..." : "Yes, Delete Everything"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

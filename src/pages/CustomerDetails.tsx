@@ -133,64 +133,122 @@ export default function CustomerDetails() {
 
                     {/* TAB: MEASUREMENTS */}
                     <TabsContent value="measurements" className="space-y-4 mt-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <Card className="md:col-span-1">
-                                <CardHeader className="pb-3"><CardTitle className="text-sm font-bold uppercase tracking-wider">History</CardTitle></CardHeader>
-                                <CardContent className="space-y-2 max-h-[450px] overflow-y-auto">
-                                    {measurements.length > 0 ? (
-                                        measurements.map((m: any) => (
-                                            <button
-                                                key={m.id}
-                                                onClick={() => setSelectedMeasurement(m)}
-                                                className={`w-full text-left p-3 rounded-lg border transition-all ${selectedMeasurement?.id === m.id ? "bg-primary/10 border-primary" : "hover:bg-muted border-transparent"
-                                                    }`}
-                                            >
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-sm font-bold">{safeFormatDate(m.created_at, "dd MMM yyyy")}</span>
-                                                    <ChevronRight className={`h-3 w-3 ${selectedMeasurement?.id === m.id ? "text-primary" : "text-muted-foreground"}`} />
-                                                </div>
-                                                <p className="text-[10px] text-muted-foreground mt-1 uppercase">
-                                                    {m.order_item_id ? "Order-Linked" : "Profile update"}
-                                                </p>
-                                            </button>
-                                        ))
-                                    ) : (
-                                        <p className="text-center py-10 text-muted-foreground text-sm italic">No history found.</p>
-                                    )}
+                        {/* Replace the content inside <TabsContent value="measurements"> */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            {/* Left Sidebar: History List */}
+                            <Card className="md:col-span-1 h-fit">
+                                <CardHeader className="pb-3 border-b">
+                                    <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+                                        History
+                                        <span className="text-[10px] bg-primary/10 px-2 py-0.5 rounded-full text-primary">{measurements.length}</span>
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-2 space-y-1 max-h-[600px] overflow-y-auto">
+                                    {measurements.map((m: any) => (
+                                        <button
+                                            key={m.id}
+                                            onClick={() => setSelectedMeasurement(m)}
+                                            className={`w-full text-left p-3 rounded-md transition-all border ${selectedMeasurement?.id === m.id
+                                                    ? "bg-primary text-white border-primary shadow-md"
+                                                    : "hover:bg-muted border-transparent"
+                                                }`}
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-sm font-bold">{safeFormatDate(m.created_at, "dd MMM yyyy")}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${selectedMeasurement?.id === m.id ? "bg-white/20" : "bg-muted-foreground/10 text-muted-foreground"
+                                                    }`}>
+                                                    {m.order_item_id ? "Order" : "Profile"}
+                                                </span>
+                                                {/* Show a preview of the main value */}
+                                                <span className="text-[10px] opacity-80 italic">Chest: {m.chest || '-'}</span>
+                                            </div>
+                                        </button>
+                                    ))}
                                 </CardContent>
                             </Card>
 
-                            <Card className="md:col-span-2">
-                                <CardHeader className="border-b pb-4">
-                                    <CardTitle className="text-lg">Values: {selectedMeasurement ? safeFormatDate(selectedMeasurement.created_at, "dd MMM yyyy") : "Select Record"}</CardTitle>
+                            {/* Right Content: Measurement Details */}
+                            <Card className="md:col-span-3">
+                                <CardHeader className="border-b flex flex-row items-center justify-between py-4">
+                                    <div>
+                                        <CardTitle className="text-lg">Detailed Measurements</CardTitle>
+                                        <p className="text-xs text-muted-foreground">Recorded on {safeFormatDate(selectedMeasurement?.created_at, "PPPP")}</p>
+                                    </div>
+                                    {selectedMeasurement && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => navigate(`/measurements/${selectedMeasurement.order_item_id || 'new'}?id=${selectedMeasurement.id}&customerId=${id}`)}
+                                        >
+                                            Edit Record
+                                        </Button>
+                                    )}
                                 </CardHeader>
-                                <CardContent className="pt-6">
+                                <CardContent className="pt-6 space-y-8">
                                     {selectedMeasurement ? (
-                                        <div className="space-y-6">
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                                {[
-                                                    { label: "Chest", val: selectedMeasurement.chest },
-                                                    { label: "Shoulder", val: selectedMeasurement.shoulder },
-                                                    { label: "Waist", val: selectedMeasurement.low_waist },
-                                                    { label: "Sleeve", val: selectedMeasurement.sleeve },
-                                                    { label: "Neck", val: selectedMeasurement.neck },
-                                                    { label: "Hip", val: selectedMeasurement.hip_lower }
-                                                ].map(item => (
-                                                    <div key={item.label} className="p-3 border rounded-lg bg-muted/20">
-                                                        <p className="text-[10px] text-muted-foreground uppercase font-bold">{item.label}</p>
-                                                        <p className="text-xl font-bold">{item.val || "-"}"</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            {selectedMeasurement.design_notes && (
-                                                <div className="mt-4 p-4 bg-muted/30 rounded-lg">
-                                                    <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Tailoring Notes</p>
-                                                    <p className="text-sm italic">"{selectedMeasurement.design_notes}"</p>
+                                        <>
+                                            {/* Upper Body Section */}
+                                            <div className="space-y-4">
+                                                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary border-l-2 border-primary pl-2">Upper Body</h4>
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                                    {[
+                                                        { label: "Chest", val: selectedMeasurement.chest },
+                                                        { label: "Shoulder", val: selectedMeasurement.shoulder },
+                                                        { label: "Neck", val: selectedMeasurement.neck },
+                                                        { label: "Sleeve", val: selectedMeasurement.sleeve },
+                                                        { label: "Biceps", val: selectedMeasurement.bicep },
+                                                        { label: "Arm Hole", val: selectedMeasurement.arm_hole },
+                                                        { label: "Front Neck", val: selectedMeasurement.front_neck_depth },
+                                                        { label: "Back Neck", val: selectedMeasurement.back_neck_depth }
+                                                    ].map(item => (
+                                                        <div key={item.label} className="p-3 border rounded-lg hover:bg-muted/10 transition-colors">
+                                                            <p className="text-[10px] text-muted-foreground uppercase font-bold">{item.label}</p>
+                                                            <p className="text-xl font-bold">{item.val ? `${item.val}"` : "-"}</p>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            )}
-                                        </div>
+                                            </div>
+
+                                            {/* Lower Body Section */}
+                                            <div className="space-y-4">
+                                                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary border-l-2 border-primary pl-2">Lower Body</h4>
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                                    {[
+                                                        { label: "Waist", val: selectedMeasurement.low_waist },
+                                                        { label: "Hip", val: selectedMeasurement.hip_lower },
+                                                        { label: "Length", val: selectedMeasurement.full_length },
+                                                        { label: "Bottom", val: selectedMeasurement.bottom_width }
+                                                    ].map(item => (
+                                                        <div key={item.label} className="p-3 border rounded-lg hover:bg-muted/10 transition-colors">
+                                                            <p className="text-[10px] text-muted-foreground uppercase font-bold">{item.label}</p>
+                                                            <p className="text-xl font-bold">{item.val ? `${item.val}"` : "-"}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Fit & Posture */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-muted/20 rounded-xl">
+                                                <div>
+                                                    <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Fit & Posture</p>
+                                                    <div className="flex gap-2">
+                                                        <span className="text-xs bg-white border px-2 py-1 rounded shadow-sm italic capitalize">{selectedMeasurement.fit_type || 'Standard'} Fit</span>
+                                                        <span className="text-xs bg-white border px-2 py-1 rounded shadow-sm italic">{selectedMeasurement.body_posture || 'Normal Posture'}</span>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Tailoring Notes</p>
+                                                    <p className="text-sm italic text-balance">{selectedMeasurement.design_notes || "No special design instructions recorded."}</p>
+                                                </div>
+                                            </div>
+                                        </>
                                     ) : (
-                                        <div className="text-center py-20 text-muted-foreground italic">Select a date to view.</div>
+                                        <div className="text-center py-20">
+                                            <Ruler className="h-12 w-12 mx-auto text-muted-foreground/20 mb-4" />
+                                            <p className="text-muted-foreground italic text-sm">Select a measurement date from the history sidebar to view details.</p>
+                                        </div>
                                     )}
                                 </CardContent>
                             </Card>

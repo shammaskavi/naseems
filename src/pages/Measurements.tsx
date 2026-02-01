@@ -106,16 +106,65 @@ export default function Measurements() {
 
   const handleCopyPrevious = () => {
     if (!latestMeasurement) {
-      toast.error("No previous measurements found");
+      toast.error("No previous measurements found for this customer.");
       return;
     }
-    setFormData((prev) => ({ ...prev, ...latestMeasurement }));
-    toast.success(`Loaded previous measurements`);
+
+    // DESTRUCTURE to pull out what we DON'T want
+    const {
+      id,
+      created_at,
+      updated_at,
+      order_item_id, // We want the NEW order_item_id, not the old one
+      customer_id,   // Usually same, but safer to exclude
+      ...actualMeasurements
+    } = latestMeasurement;
+
+    // Now spread only the 'actualMeasurements'
+    setFormData((prev) => ({
+      ...prev,
+      ...actualMeasurements,
+      // Keep the delivery date if the user already typed one in the current session
+      delivery_date: prev.delivery_date || ""
+    }));
+
+    toast.success("Measurements copied from previous profile!");
   };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  // const handleSave = async () => {
+  //   if (isNewCustomerMeasurement && !urlCustomerId) {
+  //     toast.error("Missing customer association.");
+  //     return;
+  //   }
+
+  //   const processedData = Object.fromEntries(
+  //     Object.entries(formData).map(([k, v]) => {
+  //       if (["fit_type", "body_posture", "design_notes"].includes(k)) return [k, v];
+  //       return [k, v === "" ? null : parseFloat(v)];
+  //     })
+  //   );
+
+  //   const payload = {
+  //     order_item_id: isNewCustomerMeasurement ? null : orderItemId,
+  //     customer_id: effectiveCustomerId,
+  //     ...processedData,
+  //   };
+
+  //   try {
+  //     if (existingMeasurement && !isNewCustomerMeasurement) {
+  //       await updateMeasurement.mutateAsync({ id: existingMeasurement.id, ...payload } as any);
+  //     } else {
+  //       await createMeasurement.mutateAsync(payload as any);
+  //     }
+  //     navigate(-1);
+  //   } catch (error) {
+  //     console.error("Save failed:", error);
+  //   }
+  // };
 
   const handleSave = async () => {
     if (isNewCustomerMeasurement && !urlCustomerId) {
@@ -123,28 +172,60 @@ export default function Measurements() {
       return;
     }
 
+    // 1. CLEAN THE DATA
+    // We filter out 'id' and 'created_at' so Supabase doesn't get confused 
+    // by the "previous profile" data we copied.
     const processedData = Object.fromEntries(
-      Object.entries(formData).map(([k, v]) => {
-        if (["fit_type", "body_posture", "design_notes"].includes(k)) return [k, v];
-        return [k, v === "" ? null : parseFloat(v)];
-      })
+      Object.entries(formData)
+        .filter(([k]) => k !== "id" && k !== "created_at" && k !== "updated_at")
+        .map(([k, v]) => {
+          // String fields
+          if (["fit_type", "body_posture", "design_notes", "delivery_date"].includes(k)) {
+            return [k, v];
+          }
+          // Numeric measurement fields
+          return [k, v === "" ? null : parseFloat(v)];
+        })
     );
 
-    const payload = {
-      order_item_id: isNewCustomerMeasurement ? null : orderItemId,
-      customer_id: effectiveCustomerId,
-      ...processedData,
-    };
-
     try {
+      // 2. CONSTRUCT THE MEASUREMENT PAYLOAD
+      const measurementPayload = {
+        order_item_id: isNewCustomerMeasurement ? null : orderItemId,
+        customer_id: effectiveCustomerId,
+        ...processedData,
+      };
+
+      // Remove delivery_date from the measurement_sets table payload 
+      // because it belongs in the 'orders' table instead.
+      const { delivery_date, ...onlyMeasurements } = measurementPayload;
+
       if (existingMeasurement && !isNewCustomerMeasurement) {
-        await updateMeasurement.mutateAsync({ id: existingMeasurement.id, ...payload } as any);
+        await updateMeasurement.mutateAsync({ id: existingMeasurement.id, ...onlyMeasurements } as any);
       } else {
-        await createMeasurement.mutateAsync(payload as any);
+        await createMeasurement.mutateAsync(onlyMeasurements as any);
       }
+
+      // 3. UPDATE THE DELIVERY DATE IN THE ORDERS TABLE
+      // This is the logic we added earlier to sync the date with the Quotation/Order
+      const orderId = orderItemDetails?.order_id;
+      if (orderId && formData.delivery_date) {
+        const { error: orderError } = await supabase
+          .from("orders")
+          .update({ delivery_date: formData.delivery_date })
+          .eq("id", orderId);
+
+        if (orderError) {
+          console.error("Order update error:", orderError);
+          toast.error("Measurements saved, but failed to update delivery date.");
+        }
+      }
+
+      toast.success("Measurements saved successfully!");
       navigate(-1);
-    } catch (error) {
-      console.error("Save failed:", error);
+    } catch (error: any) {
+      console.error("Save error:", error);
+      toast.error("Save failed: " + (error.message || "Unknown error"));
     }
   };
 
