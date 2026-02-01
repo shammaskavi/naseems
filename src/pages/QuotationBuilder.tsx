@@ -76,13 +76,14 @@ export default function QuotationBuilder() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useAuth();
-  
+
   const [customerOpen, setCustomerOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [items, setItems] = useState<QuotationItem[]>([{ id: "1", ...emptyItem }]);
   const [discountPercent, setDiscountPercent] = useState(0);
   const [notes, setNotes] = useState("");
   const [validDays, setValidDays] = useState(15);
+  const [deliveryDate, setDeliveryDate] = useState<string>("");
 
   const { data: customers = [] } = useCustomers();
   const { data: products = [] } = useProducts(true);
@@ -98,7 +99,9 @@ export default function QuotationBuilder() {
       setSelectedCustomerId(existingQuotation.customer_id);
       setNotes(existingQuotation.notes || "");
       setDiscountPercent(existingQuotation.discount_value || 0);
-      
+      setDeliveryDate(existingQuotation.delivery_date || ""); 
+
+
       if (existingQuotation.quotation_items && existingQuotation.quotation_items.length > 0) {
         setItems(existingQuotation.quotation_items.map((item) => ({
           id: item.id,
@@ -131,13 +134,13 @@ export default function QuotationBuilder() {
     setItems(
       items.map((item) => {
         if (item.id !== itemId) return item;
-        
+
         const updated = { ...item, [field]: value };
-        
+
         // Auto-calculate unit_price and total_price
         updated.unit_price = updated.stitching_cost + updated.design_charges;
         updated.total_price = updated.unit_price * updated.quantity;
-        
+
         return updated;
       })
     );
@@ -194,6 +197,7 @@ export default function QuotationBuilder() {
       tax_amount: cgst + sgst,
       total: totalAmount,
       valid_until: validUntil.toISOString().split("T")[0],
+      delivery_date: deliveryDate || null, // ADD THIS LINE
       notes,
       created_by: user?.id || null,
     };
@@ -485,6 +489,17 @@ export default function QuotationBuilder() {
               </div>
 
               <div className="space-y-2">
+                <Label>Target Delivery Date</Label>
+                <Input
+                  type="date"
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  disabled={isLocked}
+                  className="border-primary/20 bg-primary/5 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label>Valid For (Days)</Label>
                 <Select
                   value={validDays.toString()}
@@ -567,8 +582,8 @@ export default function QuotationBuilder() {
             <Button variant="outline" onClick={() => navigate("/quotations")}>
               Cancel
             </Button>
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               onClick={() => handleSave("draft")}
               disabled={createQuotation.isPending || updateQuotation.isPending}
             >
@@ -578,7 +593,7 @@ export default function QuotationBuilder() {
               <Save className="h-4 w-4 mr-2" />
               Save as Draft
             </Button>
-            <Button 
+            <Button
               onClick={() => handleSave("sent")}
               disabled={createQuotation.isPending || updateQuotation.isPending}
             >

@@ -238,7 +238,7 @@
   }
 
   /* Print styles */
-  @media print {
+  /* @media print {
     .no-print {
       display: none !important;
     }
@@ -250,6 +250,55 @@
     body {
       background: white !important;
       color: black !important;
+    }
+  } */
+
+  /* Optimized Thermal Printing */
+  @media print {
+
+    /* 1. Reset everything - hide headers, sidebars, and tables */
+    body * {
+      visibility: hidden;
+      background: none !important;
+      box-shadow: none !important;
+    }
+
+    /* 2. Isolate the Job Card */
+    #thermal-job-card,
+    #thermal-job-card * {
+      visibility: visible;
+    }
+
+    /* 3. Force the card to the top-left of the thermal paper */
+    #thermal-job-card {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 80mm;
+      padding: 0;
+      margin: 0;
+      display: block !important;
+      font-family: 'Inter', monospace !important;
+      /* Courier or Inter works best */
+      color: black !important;
+    }
+
+    /* 4. Remove browser-added headers/footers (Date, URL, Page No) */
+    @page {
+      size: auto;
+      margin: 0mm;
+    }
+
+    /* 5. Force text clarity for thermal heating */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      text-shadow: none !important;
+    }
+
+    /* 6. Ensure no background warmth from your cream theme shows up as gray noise */
+    body {
+      background: white !important;
     }
   }
 

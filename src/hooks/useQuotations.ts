@@ -31,6 +31,7 @@ export interface Quotation {
   tax_amount: number;
   total: number;
   valid_until: string | null;
+  delivery_date: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -59,7 +60,7 @@ export function useQuotations() {
           quotation_items (*)
         `)
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
       return data as QuotationWithDetails[];
     },
@@ -80,7 +81,7 @@ export function useQuotation(id: string | undefined) {
         `)
         .eq("id", id)
         .single();
-      
+
       if (error) throw error;
       return data as QuotationWithDetails;
     },
@@ -90,44 +91,44 @@ export function useQuotation(id: string | undefined) {
 
 export function useCreateQuotation() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      quotation, 
-      items 
-    }: { 
+    mutationFn: async ({
+      quotation,
+      items
+    }: {
       quotation: Omit<Quotation, "id" | "quotation_number" | "created_at" | "updated_at">;
       items: Omit<QuotationItem, "id" | "quotation_id" | "created_at">[];
     }) => {
       // Generate quotation number
       const { data: quotationNumber, error: numError } = await supabase
         .rpc("generate_quotation_number");
-      
+
       if (numError) throw numError;
-      
+
       // Create quotation
       const { data: newQuotation, error: quotationError } = await supabase
         .from("quotations")
         .insert({ ...quotation, quotation_number: quotationNumber })
         .select()
         .single();
-      
+
       if (quotationError) throw quotationError;
-      
+
       // Create items
       if (items.length > 0) {
         const itemsWithQuotationId = items.map(item => ({
           ...item,
           quotation_id: newQuotation.id,
         }));
-        
+
         const { error: itemsError } = await supabase
           .from("quotation_items")
           .insert(itemsWithQuotationId);
-        
+
         if (itemsError) throw itemsError;
       }
-      
+
       return newQuotation;
     },
     onSuccess: () => {
@@ -142,13 +143,13 @@ export function useCreateQuotation() {
 
 export function useUpdateQuotation() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      id, 
-      quotation, 
-      items 
-    }: { 
+    mutationFn: async ({
+      id,
+      quotation,
+      items
+    }: {
       id: string;
       quotation: Partial<Quotation>;
       items?: Omit<QuotationItem, "id" | "quotation_id" | "created_at">[];
@@ -158,29 +159,29 @@ export function useUpdateQuotation() {
         .from("quotations")
         .update(quotation)
         .eq("id", id);
-      
+
       if (quotationError) throw quotationError;
-      
+
       // If items provided, replace all items
       if (items) {
         // Delete existing items
         await supabase.from("quotation_items").delete().eq("quotation_id", id);
-        
+
         // Insert new items
         if (items.length > 0) {
           const itemsWithQuotationId = items.map(item => ({
             ...item,
             quotation_id: id,
           }));
-          
+
           const { error: itemsError } = await supabase
             .from("quotation_items")
             .insert(itemsWithQuotationId);
-          
+
           if (itemsError) throw itemsError;
         }
       }
-      
+
       return { id };
     },
     onSuccess: () => {
@@ -195,14 +196,14 @@ export function useUpdateQuotation() {
 
 export function useUpdateQuotationStatus() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: Quotation["status"] }) => {
       const { error } = await supabase
         .from("quotations")
         .update({ status })
         .eq("id", id);
-      
+
       if (error) throw error;
       return { id, status };
     },

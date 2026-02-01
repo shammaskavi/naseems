@@ -29,7 +29,7 @@ const actions: QuickAction[] = [
     title: "Add Customer",
     description: "Register new customer",
     icon: UserPlus,
-    href: "/customers/new",
+    href: "/customers",
     color: "bg-success/10 text-success hover:bg-success/20",
   },
   {
@@ -43,7 +43,7 @@ const actions: QuickAction[] = [
     title: "Take Measurements",
     description: "Record body measurements",
     icon: Ruler,
-    href: "/measurements/new",
+    href: "/measurements",
     color: "bg-info/10 text-info hover:bg-info/20",
   },
   {

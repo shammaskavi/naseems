@@ -11,10 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, MoreHorizontal, Printer, Loader2, CheckCircle, User, Ruler, Play, Pause, Plus } from "lucide-react";
 import { useStitchingJobs, useUpdateStitchingJob, useMarkJobPrinted } from "@/hooks/useStitchingJobs";
-import { useMeasurementSet } from "@/hooks/useMeasurements";
+import { useMeasurementConfig, useMeasurementSet } from "@/hooks/useMeasurements";
 import { useWorkers, useCreateWorker } from "@/hooks/useWorkers";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { JobCardTemplate } from "@/components/printing/JobCardTemplate";
 
 const statusConfig = {
   pending: { label: "Pending", className: "bg-muted text-muted-foreground" },
@@ -41,7 +43,9 @@ export default function StitchingJobs() {
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>("");
   const [newWorkerName, setNewWorkerName] = useState("");
   const [showAddWorker, setShowAddWorker] = useState(false);
-  
+  const [printData, setPrintData] = useState<{ job: any; measurements: any } | null>(null);
+  const { data: measurementConfigs } = useMeasurementConfig();
+
   const { data: jobs = [], isLoading } = useStitchingJobs();
   const { data: workers = [], isLoading: workersLoading } = useWorkers();
   const updateJob = useUpdateStitchingJob();
@@ -57,7 +61,7 @@ export default function StitchingJobs() {
 
   const handleAssign = async () => {
     if (!assignDialog.jobId) return;
-    
+
     let tailorName = "";
     if (showAddWorker && newWorkerName.trim()) {
       // Create new worker first
@@ -67,9 +71,9 @@ export default function StitchingJobs() {
       const worker = workers.find((w) => w.id === selectedWorkerId);
       tailorName = worker?.name || "";
     }
-    
+
     if (!tailorName) return;
-    
+
     await updateJob.mutateAsync({ id: assignDialog.jobId, tailor_name: tailorName, status: "assigned" });
     setAssignDialog({ open: false, jobId: null });
     setSelectedWorkerId("");
@@ -82,6 +86,26 @@ export default function StitchingJobs() {
     if (status === "in_progress") updates.started_at = new Date().toISOString();
     if (status === "completed") updates.completed_at = new Date().toISOString();
     await updateJob.mutateAsync(updates);
+  };
+
+  const handlePrint = async (job: any) => {
+    // Fetch the measurement data for this specific item
+    const { data: measurements } = await supabase
+      .from("measurement_sets")
+      .select("*")
+      .eq("order_item_id", job.order_item_id)
+      .maybeSingle();
+
+    // Merge metadata if it exists (for your dynamic fields)
+    const finalMeasurements = measurements ? { ...measurements, ...measurements.metadata } : null;
+
+    setPrintData({ job, measurements: finalMeasurements });
+
+    // Wait for React to render the hidden component, then print
+    setTimeout(() => {
+      window.print();
+      markPrinted.mutate(job.id); // Update the DB that it's printed
+    }, 500);
   };
 
   if (isLoading) {
@@ -178,7 +202,7 @@ export default function StitchingJobs() {
                           <DropdownMenuItem onClick={() => navigate(`/measurements/${job.order_item_id}`)}>
                             <Ruler className="h-4 w-4 mr-2" />View Measurements
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => markPrinted.mutate(job.id)}>
+                          <DropdownMenuItem onClick={() => handlePrint(job)}>
                             <Printer className="h-4 w-4 mr-2" />Print Job Card
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -256,6 +280,12 @@ export default function StitchingJobs() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <JobCardTemplate
+        job={printData?.job}
+        measurements={printData?.measurements}
+        config={measurementConfigs || []}
+      />
     </AppLayout>
   );
 }
