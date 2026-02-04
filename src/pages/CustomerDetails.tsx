@@ -180,7 +180,7 @@ export default function CustomerDetails() {
                                         <CardTitle className="text-lg">Detailed Measurements</CardTitle>
                                         <p className="text-xs text-muted-foreground">Recorded on {safeFormatDate(selectedMeasurement?.created_at, "PPPP")}</p>
                                     </div>
-                                    {selectedMeasurement && (
+                                    {/* {selectedMeasurement && (
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -188,7 +188,7 @@ export default function CustomerDetails() {
                                         >
                                             Edit Record
                                         </Button>
-                                    )}
+                                    )} */}
                                 </CardHeader>
                                 <CardContent className="pt-6 space-y-8">
                                     {selectedMeasurement ? (
