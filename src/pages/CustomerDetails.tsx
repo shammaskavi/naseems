@@ -19,7 +19,7 @@ import {
     FileText
 } from "lucide-react";
 import { useCustomer } from "@/hooks/useCustomers";
-import { useCustomerMeasurements } from "@/hooks/useMeasurements";
+import { useCustomerMeasurements, useMeasurementConfig } from "@/hooks/useMeasurements";
 import { useOrders } from "@/hooks/useOrders";
 import { useInvoices } from "@/hooks/useInvoices";
 import { useState } from "react";
@@ -49,6 +49,9 @@ export default function CustomerDetails() {
     // 1. Data Fetching
     const { data: customer, isLoading: customerLoading } = useCustomer(id);
     const { data: measurements = [], isLoading: measurementsLoading } = useCustomerMeasurements(id);
+
+    const { data: allConfigs = [] } = useMeasurementConfig(); // Ensure this is imported
+
     const { data: orders = [], isLoading: ordersLoading } = useOrders();
     const { data: invoices = [], isLoading: invoicesLoading } = useInvoices();
 
@@ -149,8 +152,8 @@ export default function CustomerDetails() {
                                             key={m.id}
                                             onClick={() => setSelectedMeasurement(m)}
                                             className={`w-full text-left p-3 rounded-md transition-all border ${selectedMeasurement?.id === m.id
-                                                    ? "bg-primary text-white border-primary shadow-md"
-                                                    : "hover:bg-muted border-transparent"
+                                                ? "bg-primary text-white border-primary shadow-md"
+                                                : "hover:bg-muted border-transparent"
                                                 }`}
                                         >
                                             <div className="flex justify-between items-center">
@@ -169,6 +172,7 @@ export default function CustomerDetails() {
                                 </CardContent>
                             </Card>
 
+                            {/* Right Content: Measurement Details */}
                             {/* Right Content: Measurement Details */}
                             <Card className="md:col-span-3">
                                 <CardHeader className="border-b flex flex-row items-center justify-between py-4">
@@ -189,65 +193,53 @@ export default function CustomerDetails() {
                                 <CardContent className="pt-6 space-y-8">
                                     {selectedMeasurement ? (
                                         <>
-                                            {/* Upper Body Section */}
-                                            <div className="space-y-4">
-                                                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary border-l-2 border-primary pl-2">Upper Body</h4>
-                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                                    {[
-                                                        { label: "Chest", val: selectedMeasurement.chest },
-                                                        { label: "Shoulder", val: selectedMeasurement.shoulder },
-                                                        { label: "Neck", val: selectedMeasurement.neck },
-                                                        { label: "Sleeve", val: selectedMeasurement.sleeve },
-                                                        { label: "Biceps", val: selectedMeasurement.bicep },
-                                                        { label: "Arm Hole", val: selectedMeasurement.arm_hole },
-                                                        { label: "Front Neck", val: selectedMeasurement.front_neck_depth },
-                                                        { label: "Back Neck", val: selectedMeasurement.back_neck_depth }
-                                                    ].map(item => (
-                                                        <div key={item.label} className="p-3 border rounded-lg hover:bg-muted/10 transition-colors">
-                                                            <p className="text-[10px] text-muted-foreground uppercase font-bold">{item.label}</p>
-                                                            <p className="text-xl font-bold">{item.val ? `${item.val}"` : "-"}</p>
+                                            {/* Main Measurement Grid: Two Columns for Upper/Lower Body */}
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                                {["upper_body", "lower_body"].map((cat) => {
+                                                    const catConfigs = allConfigs.filter(c => c.category === cat && c.is_active);
+                                                    if (catConfigs.length === 0) return null;
+
+                                                    return (
+                                                        <div key={cat} className="space-y-4">
+                                                            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary border-l-2 border-primary pl-2 mb-4">
+                                                                {cat.replace('_', ' ')}
+                                                            </h4>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                {catConfigs.map(config => (
+                                                                    <div key={config.name} className="flex justify-between items-center p-3 border rounded-lg bg-white shadow-sm hover:shadow-md transition-all">
+                                                                        <p className="text-[10px] text-muted-foreground uppercase font-bold">{config.label}</p>
+                                                                        <p className="text-lg font-bold text-primary">
+                                                                            {selectedMeasurement[config.name] ? `${selectedMeasurement[config.name]}"` : "-"}
+                                                                        </p>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         </div>
-                                                    ))}
-                                                </div>
+                                                    );
+                                                })}
                                             </div>
 
-                                            {/* Lower Body Section */}
-                                            <div className="space-y-4">
-                                                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary border-l-2 border-primary pl-2">Lower Body</h4>
-                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                                    {[
-                                                        { label: "Waist", val: selectedMeasurement.low_waist },
-                                                        { label: "Hip", val: selectedMeasurement.hip_lower },
-                                                        { label: "Length", val: selectedMeasurement.full_length },
-                                                        { label: "Bottom", val: selectedMeasurement.bottom_width }
-                                                    ].map(item => (
-                                                        <div key={item.label} className="p-3 border rounded-lg hover:bg-muted/10 transition-colors">
-                                                            <p className="text-[10px] text-muted-foreground uppercase font-bold">{item.label}</p>
-                                                            <p className="text-xl font-bold">{item.val ? `${item.val}"` : "-"}</p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {/* Fit & Posture */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-muted/20 rounded-xl">
+                                            {/* Fit, Posture & Notes Section (Full Width Below) */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-primary/5 rounded-xl border border-primary/10">
                                                 <div>
-                                                    <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Fit & Posture</p>
-                                                    <div className="flex gap-2">
-                                                        <span className="text-xs bg-white border px-2 py-1 rounded shadow-sm italic capitalize">{selectedMeasurement.fit_type || 'Standard'} Fit</span>
-                                                        <span className="text-xs bg-white border px-2 py-1 rounded shadow-sm italic">{selectedMeasurement.body_posture || 'Normal Posture'}</span>
+                                                    <p className="text-[10px] font-bold uppercase text-muted-foreground mb-2 tracking-wider">Style & Posture</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <span className="text-xs font-medium bg-white border px-3 py-1.5 rounded-full shadow-sm capitalize">{selectedMeasurement.fit_type || 'Standard'} Fit</span>
+                                                        <span className="text-xs font-medium bg-white border px-3 py-1.5 rounded-full shadow-sm">{selectedMeasurement.body_posture || 'Normal Posture'}</span>
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Tailoring Notes</p>
-                                                    <p className="text-sm italic text-balance">{selectedMeasurement.design_notes || "No special design instructions recorded."}</p>
+                                                    <p className="text-[10px] font-bold uppercase text-muted-foreground mb-2 tracking-wider">Tailoring Notes</p>
+                                                    <p className="text-sm italic text-muted-foreground leading-relaxed">
+                                                        {selectedMeasurement.design_notes || "No special design instructions recorded."}
+                                                    </p>
                                                 </div>
                                             </div>
                                         </>
                                     ) : (
                                         <div className="text-center py-20">
                                             <Ruler className="h-12 w-12 mx-auto text-muted-foreground/20 mb-4" />
-                                            <p className="text-muted-foreground italic text-sm">Select a measurement date from the history sidebar to view details.</p>
+                                            <p className="text-muted-foreground italic text-sm">Select a measurement date from history to view details.</p>
                                         </div>
                                     )}
                                 </CardContent>
