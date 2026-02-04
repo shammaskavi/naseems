@@ -69,32 +69,58 @@ export default function Settings() {
     ));
   };
 
+
   const handleSaveAll = async () => {
     try {
+      // 1. Save general shop/profile settings as before
       await updateSettings.mutateAsync(formData);
 
-      const configsToSave = localConfig.map(({ created_at, updated_at, ...rest }) => {
-        if (typeof rest.id === 'string' && rest.id.includes('-temp-')) {
-          const { id, ...newFieldData } = rest;
-          return newFieldData;
+      // 2. Separate the configurations into two buckets
+      const existingConfigs: any[] = [];
+      const newConfigs: any[] = [];
+
+      localConfig.forEach((item) => {
+        const { created_at, updated_at, ...rest } = item;
+
+        // If it's a real UUID (not a temp string), it's existing
+        const isNew = !rest.id || (typeof rest.id === 'string' && rest.id.includes('temp'));
+
+        if (isNew) {
+          // For NEW items, we MUST NOT have an 'id' key at all
+          const { id, ...cleanData } = rest;
+          newConfigs.push(cleanData);
+        } else {
+          existingConfigs.push(rest);
         }
-        return rest;
       });
 
-      const { error } = await supabase
-        .from("measurement_configs")
-        .upsert(configsToSave, { onConflict: 'name' });
+      // 3. Update Existing Records
+      if (existingConfigs.length > 0) {
+        const { error: updateError } = await supabase
+          .from("measurement_configs")
+          .upsert(existingConfigs, { onConflict: 'name' });
+        if (updateError) throw updateError;
+      }
 
-      if (error) throw error;
+      // 4. Insert New Records
+      if (newConfigs.length > 0) {
+        const { error: insertError } = await supabase
+          .from("measurement_configs")
+          .insert(newConfigs); // Use .insert() specifically for new items
+        if (insertError) throw insertError;
+      }
 
       toast.success("Settings and measurement workflow updated!");
       queryClient.invalidateQueries({ queryKey: ["measurement_config"] });
+
     } catch (err: any) {
+      console.error("Save Error:", err);
       toast.error(err.message?.includes('measurement_configs_name_key')
         ? "Internal Name already exists."
         : "Failed to save: " + err.message);
     }
   };
+
 
   const handleAddNewField = () => {
     if (!newField.name || !newField.label) return toast.error("Fill all fields");

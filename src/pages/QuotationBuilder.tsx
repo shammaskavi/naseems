@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import {
   Command,
   CommandEmpty,
@@ -173,8 +174,8 @@ export default function QuotationBuilder() {
   const subtotal = items.reduce((sum, item) => sum + item.total_price, 0);
   const discountAmount = (subtotal * discountPercent) / 100;
   const taxableAmount = subtotal - discountAmount;
-  const cgst = taxableAmount * 0.09;
-  const sgst = taxableAmount * 0.09;
+  const cgst = taxableAmount * 0.025;
+  const sgst = taxableAmount * 0.025;
   const totalAmount = taxableAmount + cgst + sgst;
 
   const handleSave = async (status: "draft" | "sent" = "draft") => {
@@ -562,11 +563,11 @@ export default function QuotationBuilder() {
                 </div>
                 <Separator />
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">CGST (9%)</span>
+                  <span className="text-muted-foreground">CGST (2.5%)</span>
                   <span>₹{cgst.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">SGST (9%)</span>
+                  <span className="text-muted-foreground">SGST (2.5%)</span>
                   <span>₹{sgst.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
                 </div>
                 <Separator />

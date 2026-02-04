@@ -142,7 +142,7 @@ export default function PublicInvoiceView() {
                     </CardContent>
                 </Card>
                 <p className="text-center text-xs text-muted-foreground mt-8">
-                    Generated securely by Naseem's Couture Tailoring System
+                    Generated securely by <a href="https://naseemscouture.com" className="underline hover:text-primary">Naseem's Couture</a> ❤️
                 </p>
             </div>
         </div>
