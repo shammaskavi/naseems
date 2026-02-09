@@ -20,8 +20,8 @@ export const JobCardTemplate = ({ job, measurements, config }: JobCardProps) => 
                 if (!value || value === "-" || value === 0) return null;
                 return (
                     <div key={c.name} className="flex justify-between border-b border-dotted border-gray-400 py-0.5">
-                        <span className="uppercase font-bold text-[9px]">{c.label}:</span>
-                        <span className="font-bold text-[11px]">{value}</span>
+                        <span className="uppercase font-bold ">{c.label}:</span>
+                        <span className="font-bold">{value}</span>
                     </div>
                 );
             });
