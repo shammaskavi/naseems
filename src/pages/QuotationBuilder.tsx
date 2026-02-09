@@ -412,7 +412,8 @@ export default function QuotationBuilder() {
                     <Label>Quantity</Label>
                     <Input
                       type="number"
-                      min="0"
+                      inputMode="numeric"
+                      min="1"
                       value={item.quantity}
                       onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)}
                       disabled={isLocked}
