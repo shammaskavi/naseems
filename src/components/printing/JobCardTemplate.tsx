@@ -98,7 +98,7 @@ export const JobCardTemplate = ({ job, measurements, config }: JobCardProps) => 
             </div>
 
             {/* Footer */}
-            <div className="mt-4 text-center text-[9px]">
+            <div className="mt-4 text-center text-[12px]">
                 <p>Printed on {format(new Date(), "dd/MM/yyyy HH:mm")}</p>
                 <p className="mt-1">------------------------------</p>
             </div>
