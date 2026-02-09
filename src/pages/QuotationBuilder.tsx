@@ -409,7 +409,7 @@ export default function QuotationBuilder() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Quantity</Label>
+                    <Label>Quantity naya wala</Label>
                     <Input
                       type="number"
                       inputMode="numeric"
