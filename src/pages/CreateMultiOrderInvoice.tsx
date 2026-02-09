@@ -18,7 +18,7 @@ export default function CreateMultiOrderInvoice() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [advancePaid, setAdvancePaid] = useState<number>(0);
-  
+
   const { data: orders = [], isLoading: ordersLoading } = useOrders();
   const { data: invoices = [], isLoading: invoicesLoading } = useInvoices();
   const { data: customers = [], isLoading: customersLoading } = useCustomers();
@@ -52,14 +52,14 @@ export default function CreateMultiOrderInvoice() {
   const totals = useMemo(() => {
     const subtotal = selectedOrders.reduce((sum, o) => sum + (o.subtotal || 0), 0);
     const taxableAmount = subtotal;
-    const cgstRate = 9;
-    const sgstRate = 9;
+    const cgstRate = 2.5;
+    const sgstRate = 2.5;
     const cgstAmount = taxableAmount * (cgstRate / 100);
     const sgstAmount = taxableAmount * (sgstRate / 100);
     const total = taxableAmount + cgstAmount + sgstAmount;
     const totalAdvance = selectedOrders.reduce((sum, o) => sum + (o.advance_amount || 0), 0);
     const dueAmount = total - totalAdvance - advancePaid;
-    
+
     return { subtotal, taxableAmount, cgstRate, cgstAmount, sgstRate, sgstAmount, total, totalAdvance, dueAmount };
   }, [selectedOrders, advancePaid]);
 
@@ -71,13 +71,13 @@ export default function CreateMultiOrderInvoice() {
 
   const handleCreateInvoice = async () => {
     if (selectedOrderIds.length === 0) return;
-    
+
     await createMultiOrderInvoice.mutateAsync({
       orderIds: selectedOrderIds,
       customerId: selectedCustomerId,
       advancePaid: totals.totalAdvance + advancePaid,
     });
-    
+
     navigate("/invoices");
   };
 
@@ -186,16 +186,16 @@ export default function CreateMultiOrderInvoice() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>Subtotal:</div>
                 <div className="text-right">₹{totals.subtotal.toLocaleString("en-IN")}</div>
-                
+
                 <div>CGST ({totals.cgstRate}%):</div>
                 <div className="text-right">₹{totals.cgstAmount.toLocaleString("en-IN")}</div>
-                
+
                 <div>SGST ({totals.sgstRate}%):</div>
                 <div className="text-right">₹{totals.sgstAmount.toLocaleString("en-IN")}</div>
-                
+
                 <div className="font-bold">Total:</div>
                 <div className="text-right font-bold">₹{totals.total.toLocaleString("en-IN")}</div>
-                
+
                 <div>Advance from Orders:</div>
                 <div className="text-right">₹{totals.totalAdvance.toLocaleString("en-IN")}</div>
               </div>

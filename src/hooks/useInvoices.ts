@@ -67,7 +67,7 @@ export function useInvoices() {
           invoice_items (*)
         `)
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
       return data as InvoiceWithDetails[];
     },
@@ -89,7 +89,7 @@ export function useInvoice(id: string | undefined) {
         `)
         .eq("id", id)
         .single();
-      
+
       if (error) throw error;
       return data as InvoiceWithDetails;
     },
@@ -99,7 +99,7 @@ export function useInvoice(id: string | undefined) {
 
 export function useCreateInvoiceFromOrder() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ orderId, advancePaid = 0 }: { orderId: string; advancePaid?: number }) => {
       // Fetch order with items
@@ -111,23 +111,23 @@ export function useCreateInvoiceFromOrder() {
         `)
         .eq("id", orderId)
         .single();
-      
+
       if (fetchError) throw fetchError;
-      
+
       // Generate invoice number
       const { data: invoiceNumber, error: numError } = await supabase
         .rpc("generate_invoice_number");
-      
+
       if (numError) throw numError;
-      
+
       const taxableAmount = order.subtotal;
-      const cgstRate = 9;
-      const sgstRate = 9;
+      const cgstRate = 2.5;
+      const sgstRate = 2.5;
       const cgstAmount = taxableAmount * (cgstRate / 100);
       const sgstAmount = taxableAmount * (sgstRate / 100);
       const total = taxableAmount + cgstAmount + sgstAmount;
       const dueAmount = total - advancePaid;
-      
+
       // Create invoice
       const { data: newInvoice, error: invoiceError } = await supabase
         .from("invoices")
@@ -151,9 +151,9 @@ export function useCreateInvoiceFromOrder() {
         })
         .select()
         .single();
-      
+
       if (invoiceError) throw invoiceError;
-      
+
       // Create invoice items from order items
       const invoiceItems = order.order_items.map((oi: any) => ({
         invoice_id: newInvoice.id,
@@ -163,16 +163,16 @@ export function useCreateInvoiceFromOrder() {
         rate: oi.unit_price,
         amount: oi.total_price,
       }));
-      
+
       const { error: itemsError } = await supabase
         .from("invoice_items")
         .insert(invoiceItems);
-      
+
       if (itemsError) throw itemsError;
-      
+
       // Also insert into invoice_orders junction table
       await supabase.from("invoice_orders").insert({ invoice_id: newInvoice.id, order_id: orderId });
-      
+
       return newInvoice;
     },
     onSuccess: () => {
@@ -188,7 +188,7 @@ export function useCreateInvoiceFromOrder() {
 
 export function useCreateMultiOrderInvoice() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ orderIds, customerId, advancePaid = 0 }: { orderIds: string[]; customerId: string; advancePaid?: number }) => {
       // Fetch all orders with items
@@ -196,14 +196,14 @@ export function useCreateMultiOrderInvoice() {
         .from("orders")
         .select(`*, order_items (*)`)
         .in("id", orderIds);
-      
+
       if (fetchError) throw fetchError;
       if (!ordersData || ordersData.length === 0) throw new Error("No orders found");
-      
+
       // Generate invoice number
       const { data: invoiceNumber, error: numError } = await supabase.rpc("generate_invoice_number");
       if (numError) throw numError;
-      
+
       // Calculate totals across all orders
       const subtotal = ordersData.reduce((sum, o) => sum + (o.subtotal || 0), 0);
       const taxableAmount = subtotal;
@@ -213,7 +213,7 @@ export function useCreateMultiOrderInvoice() {
       const sgstAmount = taxableAmount * (sgstRate / 100);
       const total = taxableAmount + cgstAmount + sgstAmount;
       const dueAmount = total - advancePaid;
-      
+
       // Create invoice (order_id null for multi-order)
       const { data: newInvoice, error: invoiceError } = await supabase
         .from("invoices")
@@ -237,9 +237,9 @@ export function useCreateMultiOrderInvoice() {
         })
         .select()
         .single();
-      
+
       if (invoiceError) throw invoiceError;
-      
+
       // Create invoice items from all order items
       const invoiceItems = ordersData.flatMap((order) =>
         (order.order_items || []).map((oi: any) => ({
@@ -251,16 +251,16 @@ export function useCreateMultiOrderInvoice() {
           amount: oi.total_price,
         }))
       );
-      
+
       if (invoiceItems.length > 0) {
         const { error: itemsError } = await supabase.from("invoice_items").insert(invoiceItems);
         if (itemsError) throw itemsError;
       }
-      
+
       // Insert into invoice_orders junction table
       const invoiceOrders = orderIds.map((orderId) => ({ invoice_id: newInvoice.id, order_id: orderId }));
       await supabase.from("invoice_orders").insert(invoiceOrders);
-      
+
       return newInvoice;
     },
     onSuccess: () => {
@@ -276,19 +276,19 @@ export function useCreateMultiOrderInvoice() {
 
 export function useUpdateInvoiceStatus() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, status, dueAmount }: { id: string; status: Invoice["status"]; dueAmount?: number }) => {
       const updateData: Partial<Invoice> = { status };
       if (typeof dueAmount === 'number') {
         updateData.due_amount = dueAmount;
       }
-      
+
       const { error } = await supabase
         .from("invoices")
         .update(updateData)
         .eq("id", id);
-      
+
       if (error) throw error;
       return { id, status };
     },
