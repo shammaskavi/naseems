@@ -207,8 +207,8 @@ export function useCreateMultiOrderInvoice() {
       // Calculate totals across all orders
       const subtotal = ordersData.reduce((sum, o) => sum + (o.subtotal || 0), 0);
       const taxableAmount = subtotal;
-      const cgstRate = 9;
-      const sgstRate = 9;
+      const cgstRate = 2.5;
+      const sgstRate = 2.5;
       const cgstAmount = taxableAmount * (cgstRate / 100);
       const sgstAmount = taxableAmount * (sgstRate / 100);
       const total = taxableAmount + cgstAmount + sgstAmount;
