@@ -66,16 +66,16 @@ export const JobCardTemplate = ({ job, measurements, config }: JobCardProps) => 
 
             {/* Structured Measurements Section */}
             <div className="mb-2">
-                <p className="text-[10px] font-bold border-b border-black mb-1">MEASUREMENTS (inches)</p>
+                <p className="font-bold border-b border-black mb-1">MEASUREMENTS (inches)</p>
                 <div className="flex gap-x-4">
                     {/* Left Column: Upper Body */}
                     <div className="flex-1">
-                        <p className="text-[8px] font-bold border-b border-black mb-1 uppercase bg-gray-100 text-center">Upper Body</p>
+                        <p className="font-bold border-b border-black mb-1 uppercase bg-gray-100 text-center">Upper Body</p>
                         {renderCategory("upper_body")}
                     </div>
                     {/* Right Column: Lower Body */}
                     <div className="flex-1">
-                        <p className="text-[8px] font-bold border-b border-black mb-1 uppercase bg-gray-100 text-center">Lower Body</p>
+                        <p className="font-bold border-b border-black mb-1 uppercase bg-gray-100 text-center">Lower Body</p>
                         {renderCategory("lower_body")}
                     </div>
                 </div>
