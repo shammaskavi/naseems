@@ -434,23 +434,23 @@ export default function QuotationBuilder() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Design / Embroidery (₹)</Label>
+                    <Label>Add-ons</Label>
+                    <Input
+                      placeholder="Lining, Buttons, etc."
+                      value={item.addons}
+                      onChange={(e) => updateItem(item.id, "addons", e.target.value)}
+                      disabled={isLocked}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Add-on Charges (₹)</Label>
                     <Input
                       type="number"
                       min="0"
                       value={item.design_charges || ""}
                       onChange={(e) => updateItem(item.id, "design_charges", parseFloat(e.target.value) || 0)}
                       placeholder="0"
-                      disabled={isLocked}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Add-ons</Label>
-                    <Input
-                      placeholder="Lining, Buttons, etc."
-                      value={item.addons}
-                      onChange={(e) => updateItem(item.id, "addons", e.target.value)}
                       disabled={isLocked}
                     />
                   </div>

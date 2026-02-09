@@ -16,7 +16,8 @@ import {
     ChevronRight,
     Calendar,
     Clock,
-    FileText
+    FileText,
+    Printer
 } from "lucide-react";
 import { useCustomer } from "@/hooks/useCustomers";
 import { useCustomerMeasurements, useMeasurementConfig } from "@/hooks/useMeasurements";
@@ -24,6 +25,7 @@ import { useOrders } from "@/hooks/useOrders";
 import { useInvoices } from "@/hooks/useInvoices";
 import { useState } from "react";
 import { format, isValid } from "date-fns";
+import { JobCardTemplate } from "@/components/printing/JobCardTemplate";
 
 // Helper to prevent "Invalid Time Value" crashes and fix "N/A" issues
 const safeFormatDate = (dateString: string | null | undefined, formatStr: string) => {
@@ -45,6 +47,7 @@ export default function CustomerDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [selectedMeasurement, setSelectedMeasurement] = useState<any>(null);
+    const [printData, setPrintData] = useState<{ job: any; measurements: any } | null>(null);
 
     // 1. Data Fetching
     const { data: customer, isLoading: customerLoading } = useCustomer(id);
@@ -76,6 +79,30 @@ export default function CustomerDetails() {
             </AppLayout>
         );
     }
+
+    const handlePrint = () => {
+        if (!selectedMeasurement) return;
+
+        // Create a mock job object so the JobCardTemplate has names to display
+        const mockJob = {
+            orders: {
+                order_number: "PROFILE-REF",
+                customers: { name: customer?.name }
+            },
+            order_items: { garment_type: "Reference" },
+            tailor_name: "Master"
+        };
+
+        setPrintData({ job: mockJob, measurements: selectedMeasurement });
+
+        // Wait for state to update then trigger browser print
+        setTimeout(() => {
+            window.print();
+            // Reset print data after a delay
+            setTimeout(() => setPrintData(null), 1000);
+        }, 500);
+    };
+
 
     return (
         <AppLayout title="Customer Profile" subtitle={customer?.name}>
@@ -180,15 +207,19 @@ export default function CustomerDetails() {
                                         <CardTitle className="text-lg">Detailed Measurements</CardTitle>
                                         <p className="text-xs text-muted-foreground">Recorded on {safeFormatDate(selectedMeasurement?.created_at, "PPPP")}</p>
                                     </div>
-                                    {/* {selectedMeasurement && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => navigate(`/measurements/${selectedMeasurement.order_item_id || 'new'}?id=${selectedMeasurement.id}&customerId=${id}`)}
-                                        >
-                                            Edit Record
+
+                                    {selectedMeasurement && (
+                                        <Button variant="outline" size="sm" onClick={handlePrint}>
+                                            <Printer className="h-4 w-4 mr-2" /> Print Card
                                         </Button>
-                                    )} */}
+                                        // <Button
+                                        //     variant="outline"
+                                        //     size="sm"
+                                        //     onClick={() => navigate(`/measurements/${selectedMeasurement.order_item_id || 'new'}?id=${selectedMeasurement.id}&customerId=${id}`)}
+                                        // >
+                                        //     Edit Record
+                                        // </Button>
+                                    )}
                                 </CardHeader>
                                 <CardContent className="pt-6 space-y-8">
                                     {selectedMeasurement ? (
@@ -305,6 +336,13 @@ export default function CustomerDetails() {
                     </TabsContent>
                 </Tabs>
             </div>
+            {/* Place this right before the closing </AppLayout> */}
+            <JobCardTemplate
+                job={printData?.job}
+                measurements={printData?.measurements}
+                config={allConfigs}
+            />
+
         </AppLayout>
     );
 }

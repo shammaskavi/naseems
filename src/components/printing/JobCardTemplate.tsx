@@ -57,7 +57,7 @@ export const JobCardTemplate = ({ job, measurements, config }: JobCardProps) => 
                         if (!value) return null;
                         return (
                             <div key={c.name} className="flex justify-between border-b border-dotted border-gray-400">
-                                <span className="text-[10px] uppercase">{c.label}:</span>
+                                <span className="uppercase font-bold">{c.label}:</span>
                                 <span className="font-bold">{value}</span>
                             </div>
                         );
