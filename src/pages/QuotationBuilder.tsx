@@ -413,9 +413,9 @@ export default function QuotationBuilder() {
                     <Input
                       type="number"
                       inputMode="numeric"
-                      min="1"
+                      min="0"
                       value={item.quantity}
-                      onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)}
+                      onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 0)}
                       disabled={isLocked}
                     />
                   </div>
