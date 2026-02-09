@@ -412,9 +412,24 @@ export default function QuotationBuilder() {
                     <Label>Quantity</Label>
                     <Input
                       type="number"
+                      inputMode="numeric" // Forces the numeric keypad on iPad
                       min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)}
+                      value={item.quantity === 0 ? "" : item.quantity}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Allow empty string so user can delete and re-type
+                        if (val === "") {
+                          updateItem(item.id, "quantity", "");
+                          return;
+                        }
+                        updateItem(item.id, "quantity", parseInt(val, 10));
+                      }}
+                      onBlur={(e) => {
+                        // If they leave it empty, snap back to 1
+                        if (e.target.value === "" || parseInt(e.target.value) < 1) {
+                          updateItem(item.id, "quantity", 1);
+                        }
+                      }}
                       disabled={isLocked}
                     />
                   </div>
