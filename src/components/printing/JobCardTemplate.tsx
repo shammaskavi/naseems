@@ -11,6 +11,22 @@ interface JobCardProps {
 export const JobCardTemplate = ({ job, measurements, config }: JobCardProps) => {
     if (!job) return null;
 
+    // Helper to render filtered measurements by category
+    const renderCategory = (category: string) => {
+        return config
+            ?.filter((c) => c.category === category)
+            .map((c) => {
+                const value = measurements?.[c.name];
+                if (!value || value === "-" || value === 0) return null;
+                return (
+                    <div key={c.name} className="flex justify-between border-b border-dotted border-gray-400 py-0.5">
+                        <span className="uppercase font-bold text-[9px]">{c.label}:</span>
+                        <span className="font-bold text-[11px]">{value}</span>
+                    </div>
+                );
+            });
+    };
+
     return (
         <div id="thermal-job-card" className="hidden print:block w-[80mm] p-2 bg-white text-black font-mono">
             {/* Header: High Visibility */}
@@ -48,20 +64,20 @@ export const JobCardTemplate = ({ job, measurements, config }: JobCardProps) => 
                 </span>
             </div>
 
-            {/* Measurements Section */}
+            {/* Structured Measurements Section */}
             <div className="mb-2">
                 <p className="text-[10px] font-bold border-b border-black mb-1">MEASUREMENTS (inches)</p>
-                <div className="grid grid-cols-2 gap-x-4 text-xs">
-                    {config?.map((c) => {
-                        const value = measurements?.[c.name];
-                        if (!value) return null;
-                        return (
-                            <div key={c.name} className="flex justify-between border-b border-dotted border-gray-400">
-                                <span className="uppercase font-bold">{c.label}:</span>
-                                <span className="font-bold">{value}</span>
-                            </div>
-                        );
-                    })}
+                <div className="flex gap-x-4">
+                    {/* Left Column: Upper Body */}
+                    <div className="flex-1">
+                        <p className="text-[8px] font-bold border-b border-black mb-1 uppercase bg-gray-100 text-center">Upper Body</p>
+                        {renderCategory("upper_body")}
+                    </div>
+                    {/* Right Column: Lower Body */}
+                    <div className="flex-1">
+                        <p className="text-[8px] font-bold border-b border-black mb-1 uppercase bg-gray-100 text-center">Lower Body</p>
+                        {renderCategory("lower_body")}
+                    </div>
                 </div>
             </div>
 
