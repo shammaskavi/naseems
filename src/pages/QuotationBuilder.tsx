@@ -409,13 +409,12 @@ export default function QuotationBuilder() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Quantity naya wala</Label>
+                    <Label>Quantity</Label>
                     <Input
                       type="number"
-                      inputMode="numeric"
-                      min="0"
+                      min="1"
                       value={item.quantity}
-                      onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 0)}
+                      onChange={(e) => updateItem(item.id, "quantity", parseInt(e.target.value) || 1)}
                       disabled={isLocked}
                     />
                   </div>
