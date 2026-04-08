@@ -7,27 +7,24 @@ import {
     Loader2,
     ArrowLeft,
     Phone,
-    MapPin,
     Mail,
     Ruler,
-    ShoppingBag,
     IndianRupee,
     Plus,
-    ChevronRight,
     Calendar,
-    Clock,
     FileText,
-    Printer
+    Printer,
+    User
 } from "lucide-react";
 import { useCustomer } from "@/hooks/useCustomers";
 import { useCustomerMeasurements, useMeasurementConfig } from "@/hooks/useMeasurements";
 import { useOrders } from "@/hooks/useOrders";
 import { useInvoices } from "@/hooks/useInvoices";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, isValid } from "date-fns";
 import { JobCardTemplate } from "@/components/printing/JobCardTemplate";
+import { cn } from "@/lib/utils";
 
-// Helper to prevent "Invalid Time Value" crashes and fix "N/A" issues
 const safeFormatDate = (dateString: string | null | undefined, formatStr: string) => {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
@@ -35,10 +32,8 @@ const safeFormatDate = (dateString: string | null | undefined, formatStr: string
     return format(date, formatStr);
 };
 
-// Resilient helper to find the price in any field name
 const getOrderAmount = (order: any): number => {
     if (!order) return 0;
-    // Try balance first (as seen in the Orders list), then total, then total_amount
     const amount = order.balance ?? order.total ?? order.total_amount ?? order.total_price ?? 0;
     return Number(amount);
 };
@@ -49,26 +44,22 @@ export default function CustomerDetails() {
     const [selectedMeasurement, setSelectedMeasurement] = useState<any>(null);
     const [printData, setPrintData] = useState<{ job: any; measurements: any } | null>(null);
 
-    // 1. Data Fetching
     const { data: customer, isLoading: customerLoading } = useCustomer(id);
     const { data: measurements = [], isLoading: measurementsLoading } = useCustomerMeasurements(id);
-
-    const { data: allConfigs = [] } = useMeasurementConfig(); // Ensure this is imported
+    const { data: allConfigs = [] } = useMeasurementConfig();
 
     const { data: orders = [], isLoading: ordersLoading } = useOrders();
     const { data: invoices = [], isLoading: invoicesLoading } = useInvoices();
 
-    // 2. Filter data for this specific customer
     const customerOrders = orders.filter(o => o.customer_id === id);
     const customerInvoices = invoices.filter(inv => inv.customer_id === id);
-
-    // 3. Financial Logic - Summing using the resilient helper
     const totalLifetimeSpend = customerOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
 
-    // Auto-select latest measurement for display
-    if (measurements.length > 0 && !selectedMeasurement && !measurementsLoading) {
-        setSelectedMeasurement(measurements[0]);
-    }
+    useEffect(() => {
+        if (measurements.length > 0 && !selectedMeasurement) {
+            setSelectedMeasurement(measurements[0]);
+        }
+    }, [measurements, selectedMeasurement]);
 
     if (customerLoading || ordersLoading || invoicesLoading) {
         return (
@@ -80,35 +71,28 @@ export default function CustomerDetails() {
         );
     }
 
+    // INDUSTRY STANDARD: Auto-detect gender for styling based on data
+    const isFemaleData = selectedMeasurement?.bust || selectedMeasurement?.bust_point || selectedMeasurement?.cross_front;
+    const activeDisplayGender = isFemaleData ? "female" : "male";
+
     const handlePrint = () => {
         if (!selectedMeasurement) return;
-
-        // Create a mock job object so the JobCardTemplate has names to display
         const mockJob = {
-            orders: {
-                order_number: "PROFILE-REF",
-                customers: { name: customer?.name }
-            },
+            orders: { order_number: "PROFILE-REF", customers: { name: customer?.name } },
             order_items: { garment_type: "Reference" },
             tailor_name: "Master"
         };
-
         setPrintData({ job: mockJob, measurements: selectedMeasurement });
-
-        // Wait for state to update then trigger browser print
         setTimeout(() => {
             window.print();
-            // Reset print data after a delay
             setTimeout(() => setPrintData(null), 1000);
         }, 500);
     };
-
 
     return (
         <AppLayout title="Customer Profile" subtitle={customer?.name}>
             <div className="space-y-6 max-w-6xl mx-auto pb-12 animate-fade-in">
 
-                {/* Navigation & Quick Actions */}
                 <div className="flex items-center justify-between">
                     <Button variant="ghost" onClick={() => navigate("/customers")}>
                         <ArrowLeft className="h-4 w-4 mr-2" /> Back to List
@@ -120,7 +104,6 @@ export default function CustomerDetails() {
                     </div>
                 </div>
 
-                {/* Customer Info Header */}
                 <Card className="bg-primary/5 border-primary/10 shadow-sm overflow-hidden">
                     <CardContent className="pt-6">
                         <div className="flex flex-col md:flex-row justify-between gap-6">
@@ -152,7 +135,6 @@ export default function CustomerDetails() {
                     </CardContent>
                 </Card>
 
-                {/* Updated Tab Navigation */}
                 <Tabs defaultValue="measurements" className="w-full">
                     <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
                         <TabsTrigger value="measurements">Measurements</TabsTrigger>
@@ -161,17 +143,11 @@ export default function CustomerDetails() {
                         <TabsTrigger value="payments">Payments</TabsTrigger>
                     </TabsList>
 
-                    {/* TAB: MEASUREMENTS */}
                     <TabsContent value="measurements" className="space-y-4 mt-4">
-                        {/* Replace the content inside <TabsContent value="measurements"> */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                            {/* Left Sidebar: History List */}
                             <Card className="md:col-span-1 h-fit">
                                 <CardHeader className="pb-3 border-b">
-                                    <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center justify-between">
-                                        History
-                                        <span className="text-[10px] bg-primary/10 px-2 py-0.5 rounded-full text-primary">{measurements.length}</span>
-                                    </CardTitle>
+                                    <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center justify-between">History</CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-2 space-y-1 max-h-[600px] overflow-y-auto">
                                     {measurements.map((m: any) => (
@@ -183,64 +159,62 @@ export default function CustomerDetails() {
                                                 : "hover:bg-muted border-transparent"
                                                 }`}
                                         >
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-sm font-bold">{safeFormatDate(m.created_at, "dd MMM yyyy")}</span>
+                                            <div className="flex justify-between items-center font-bold text-sm">
+                                                {safeFormatDate(m.created_at, "dd MMM yyyy")}
                                             </div>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${selectedMeasurement?.id === m.id ? "bg-white/20" : "bg-muted-foreground/10 text-muted-foreground"
-                                                    }`}>
-                                                    {m.order_item_id ? "Order" : "Profile"}
-                                                </span>
-                                                {/* Show a preview of the main value */}
-                                                <span className="text-[10px] opacity-80 italic">Chest: {m.chest || '-'}</span>
+                                            <div className="text-[9px] uppercase opacity-70 mt-1">
+                                                {m.order_item_id ? "Order Measurement" : "Profile Reference"}
                                             </div>
                                         </button>
                                     ))}
                                 </CardContent>
                             </Card>
 
-                            {/* Right Content: Measurement Details */}
-                            {/* Right Content: Measurement Details */}
                             <Card className="md:col-span-3">
                                 <CardHeader className="border-b flex flex-row items-center justify-between py-4">
                                     <div>
-                                        <CardTitle className="text-lg">Detailed Measurements</CardTitle>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            {activeDisplayGender === 'female' ? "Female Tailoring Profile" : "Male Tailoring Profile"}
+                                        </CardTitle>
                                         <p className="text-xs text-muted-foreground">Recorded on {safeFormatDate(selectedMeasurement?.created_at, "PPPP")}</p>
                                     </div>
 
                                     {selectedMeasurement && (
                                         <Button variant="outline" size="sm" onClick={handlePrint}>
-                                            <Printer className="h-4 w-4 mr-2" /> Print Card
+                                            <Printer className="h-4 w-4 mr-2" /> Print Slip
                                         </Button>
-                                        // <Button
-                                        //     variant="outline"
-                                        //     size="sm"
-                                        //     onClick={() => navigate(`/measurements/${selectedMeasurement.order_item_id || 'new'}?id=${selectedMeasurement.id}&customerId=${id}`)}
-                                        // >
-                                        //     Edit Record
-                                        // </Button>
                                     )}
                                 </CardHeader>
                                 <CardContent className="pt-6 space-y-8">
                                     {selectedMeasurement ? (
                                         <>
-                                            {/* Main Measurement Grid: Two Columns for Upper/Lower Body */}
                                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                                 {["upper_body", "lower_body"].map((cat) => {
-                                                    const catConfigs = allConfigs.filter(c => c.category === cat && c.is_active);
-                                                    if (catConfigs.length === 0) return null;
+                                                    // HIDE EMPTY FIELDS LOGIC: Only show if value is not null/empty
+                                                    const fieldsWithData = allConfigs.filter(config =>
+                                                        config.category === cat &&
+                                                        config.is_active &&
+                                                        selectedMeasurement[config.name] !== null &&
+                                                        selectedMeasurement[config.name] !== undefined &&
+                                                        selectedMeasurement[config.name] !== ""
+                                                    );
+
+                                                    if (fieldsWithData.length === 0) return null;
 
                                                     return (
                                                         <div key={cat} className="space-y-4">
-                                                            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary border-l-2 border-primary pl-2 mb-4">
+                                                            <h4 className={cn(
+                                                                "text-[10px] font-bold uppercase tracking-[0.2em] border-l-2 pl-2 mb-4",
+                                                                activeDisplayGender === 'female' ? "text-pink-600 border-pink-600" : "text-primary border-primary"
+                                                            )}>
                                                                 {cat.replace('_', ' ')}
                                                             </h4>
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                                {catConfigs.map(config => (
-                                                                    <div key={config.name} className="flex justify-between items-center p-3 border rounded-lg bg-white shadow-sm hover:shadow-md transition-all">
+                                                                {fieldsWithData.map(config => (
+                                                                    <div key={config.name} className="flex justify-between items-center p-3 border rounded-lg bg-white shadow-sm transition-all">
                                                                         <p className="text-[10px] text-muted-foreground uppercase font-bold">{config.label}</p>
-                                                                        <p className="text-lg font-bold text-primary">
-                                                                            {selectedMeasurement[config.name] ? `${selectedMeasurement[config.name]}"` : "-"}
+                                                                        <p className={cn("text-lg font-bold", activeDisplayGender === 'female' ? "text-pink-700" : "text-primary")}>
+                                                                            {selectedMeasurement[config.name]}"
                                                                         </p>
                                                                     </div>
                                                                 ))}
@@ -250,99 +224,81 @@ export default function CustomerDetails() {
                                                 })}
                                             </div>
 
-                                            {/* Fit, Posture & Notes Section (Full Width Below) */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-primary/5 rounded-xl border border-primary/10">
+                                            {/* Style & Notes (Only shows if they exist) */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-muted/30 rounded-xl border">
                                                 <div>
                                                     <p className="text-[10px] font-bold uppercase text-muted-foreground mb-2 tracking-wider">Style & Posture</p>
                                                     <div className="flex flex-wrap gap-2">
                                                         <span className="text-xs font-medium bg-white border px-3 py-1.5 rounded-full shadow-sm capitalize">{selectedMeasurement.fit_type || 'Standard'} Fit</span>
-                                                        <span className="text-xs font-medium bg-white border px-3 py-1.5 rounded-full shadow-sm">{selectedMeasurement.body_posture || 'Normal Posture'}</span>
+                                                        {selectedMeasurement.body_posture && (
+                                                            <span className="text-xs font-medium bg-white border px-3 py-1.5 rounded-full shadow-sm">{selectedMeasurement.body_posture}</span>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <p className="text-[10px] font-bold uppercase text-muted-foreground mb-2 tracking-wider">Tailoring Notes</p>
                                                     <p className="text-sm italic text-muted-foreground leading-relaxed">
-                                                        {selectedMeasurement.design_notes || "No special design instructions recorded."}
+                                                        {selectedMeasurement.design_notes || "No special design instructions."}
                                                     </p>
                                                 </div>
                                             </div>
                                         </>
                                     ) : (
-                                        <div className="text-center py-20">
-                                            <Ruler className="h-12 w-12 mx-auto text-muted-foreground/20 mb-4" />
-                                            <p className="text-muted-foreground italic text-sm">Select a measurement date from history to view details.</p>
-                                        </div>
+                                        <div className="text-center py-20 text-muted-foreground italic text-sm">Select a date to view details.</div>
                                     )}
                                 </CardContent>
                             </Card>
                         </div>
                     </TabsContent>
 
-                    {/* TAB: ORDERS (FIXED PRICING) */}
-                    <TabsContent value="orders" className="mt-4">
-                        <div className="space-y-4">
-                            {customerOrders.length > 0 ? (
-                                customerOrders.map(order => (
-                                    <div key={order.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/orders/${order.id}`)}>
+                    <TabsContent value="orders" className="mt-4 space-y-4">
+                        {customerOrders.length > 0 ? (
+                            customerOrders.map(order => (
+                                <div key={order.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => navigate(`/orders/${order.id}`)}>
+                                    <div>
+                                        <p className="font-bold">{order.order_number}</p>
+                                        <p className="text-xs text-muted-foreground">{safeFormatDate(order.created_at, "dd MMM yyyy")}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-bold text-lg text-primary">₹{getOrderAmount(order).toLocaleString("en-IN")}</p>
+                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-secondary">{order.status}</span>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-center py-10 text-muted-foreground italic">No orders found.</p>
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="invoices" className="mt-4 space-y-4">
+                        {customerInvoices.length > 0 ? (
+                            customerInvoices.map(inv => (
+                                <div key={inv.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => navigate(`/invoices/${inv.id}`)}>
+                                    <div className="flex items-center gap-3">
+                                        <FileText className="h-5 w-5 text-muted-foreground" />
                                         <div>
-                                            <p className="font-bold">{order.order_number}</p>
-                                            <p className="text-xs text-muted-foreground">{safeFormatDate(order.order_date || order.created_at, "dd MMM yyyy")}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            {/* Fixed: Resilient amount discovery */}
-                                            <p className="font-bold text-lg text-primary">₹{getOrderAmount(order).toLocaleString("en-IN")}</p>
-                                            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-secondary">{order.status?.replace('_', ' ')}</span>
+                                            <p className="font-bold">{inv.invoice_number}</p>
+                                            <p className="text-[10px] text-muted-foreground">{safeFormatDate(inv.created_at, "dd MMM yyyy")}</p>
                                         </div>
                                     </div>
-                                ))
-                            ) : (
-                                <p className="text-center py-10 text-muted-foreground italic">No orders found.</p>
-                            )}
-                        </div>
+                                    <div className="text-right font-bold text-primary">₹{Number(inv.total || 0).toLocaleString("en-IN")}</div>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-center py-10 text-muted-foreground italic">No invoices found.</p>
+                        )}
                     </TabsContent>
 
-                    {/* TAB: INVOICES */}
-                    <TabsContent value="invoices" className="mt-4">
-                        <div className="space-y-4">
-                            {customerInvoices.length > 0 ? (
-                                customerInvoices.map(inv => (
-                                    <div key={inv.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/invoices/${inv.id}`)}>
-                                        <div className="flex items-center gap-3">
-                                            <FileText className="h-5 w-5 text-muted-foreground" />
-                                            <div>
-                                                <p className="font-bold">{inv.invoice_number}</p>
-                                                <p className="text-[10px] text-muted-foreground">{safeFormatDate(inv.invoice_date || inv.created_at, "dd MMM yyyy")}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right font-bold">₹{Number(inv.total || inv.amount || 0).toLocaleString("en-IN")}</div>
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="text-center py-10 text-muted-foreground italic">No invoices found.</p>
-                            )}
-                        </div>
-                    </TabsContent>
-
-                    {/* TAB: PAYMENTS */}
                     <TabsContent value="payments" className="mt-4">
                         <Card className="text-center py-12">
                             <IndianRupee className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-20" />
                             <h3 className="text-3xl font-bold text-primary">₹{totalLifetimeSpend.toLocaleString("en-IN")}</h3>
                             <p className="text-xs font-bold uppercase text-muted-foreground tracking-widest mt-1">Total Lifetime Spend</p>
-                            <div className="mt-8 border-t pt-6 max-w-xs mx-auto text-xs text-muted-foreground">
-                                Sum of all order values linked to this account.
-                            </div>
                         </Card>
                     </TabsContent>
                 </Tabs>
             </div>
-            {/* Place this right before the closing </AppLayout> */}
-            <JobCardTemplate
-                job={printData?.job}
-                measurements={printData?.measurements}
-                config={allConfigs}
-            />
-
+            <JobCardTemplate job={printData?.job} measurements={printData?.measurements} config={allConfigs} />
         </AppLayout>
     );
 }

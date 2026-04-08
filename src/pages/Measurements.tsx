@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Save, ArrowLeft, Copy, Ruler } from "lucide-react";
+import { Loader2, Save, ArrowLeft, Copy, Ruler, Users } from "lucide-react";
 import {
   useMeasurementSet,
   useCreateMeasurementSet,
@@ -16,8 +16,10 @@ import {
 } from "@/hooks/useMeasurements";
 import { useOrderItem } from "@/hooks/useOrders";
 import { useCustomer } from "@/hooks/useCustomers";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 type FitType = "regular" | "slim" | "comfort";
 
@@ -33,11 +35,10 @@ const MeasurementInput = ({ label, field, value, onChange, index }: MeasurementI
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      // Find the next input in the DOM with the data-index attribute
       const nextInput = document.querySelector(`[data-m-index="${index + 1}"]`) as HTMLInputElement;
       if (nextInput) {
         nextInput.focus();
-        nextInput.select(); // Select text for quick overwriting
+        nextInput.select();
       }
     }
   };
@@ -86,11 +87,23 @@ export default function Measurements() {
   const createMeasurement = useCreateMeasurementSet();
   const updateMeasurement = useUpdateMeasurementSet();
 
+  const [activeGender, setActiveGender] = useState<"male" | "female">("male");
   const [formData, setFormData] = useState<Record<string, any>>({
     fit_type: "regular" as FitType,
     body_posture: "",
     design_notes: "",
   });
+
+  // Auto-detect gender from garment type
+  useEffect(() => {
+    if (orderItemDetails?.garment_type) {
+      const type = orderItemDetails.garment_type.toLowerCase();
+      const femaleKeywords = ['blouse', 'lehenga', 'saree', 'kurti', 'ghagra', 'chudidar', 'salwar'];
+      if (femaleKeywords.some(kw => type.includes(kw))) {
+        setActiveGender('female');
+      }
+    }
+  }, [orderItemDetails]);
 
   useEffect(() => {
     if (existingMeasurement) {
@@ -106,65 +119,17 @@ export default function Measurements() {
 
   const handleCopyPrevious = () => {
     if (!latestMeasurement) {
-      toast.error("No previous measurements found for this customer.");
+      toast.error("No previous measurements found.");
       return;
     }
-
-    // DESTRUCTURE to pull out what we DON'T want
-    const {
-      id,
-      created_at,
-      updated_at,
-      order_item_id, // We want the NEW order_item_id, not the old one
-      customer_id,   // Usually same, but safer to exclude
-      ...actualMeasurements
-    } = latestMeasurement;
-
-    // Now spread only the 'actualMeasurements'
-    setFormData((prev) => ({
-      ...prev,
-      ...actualMeasurements,
-      // Keep the delivery date if the user already typed one in the current session
-      delivery_date: prev.delivery_date || ""
-    }));
-
-    toast.success("Measurements copied from previous profile!");
+    const { id, created_at, updated_at, order_item_id, customer_id, ...actualMeasurements } = latestMeasurement;
+    setFormData((prev) => ({ ...prev, ...actualMeasurements, delivery_date: prev.delivery_date || "" }));
+    toast.success("Measurements copied!");
   };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
-
-  // const handleSave = async () => {
-  //   if (isNewCustomerMeasurement && !urlCustomerId) {
-  //     toast.error("Missing customer association.");
-  //     return;
-  //   }
-
-  //   const processedData = Object.fromEntries(
-  //     Object.entries(formData).map(([k, v]) => {
-  //       if (["fit_type", "body_posture", "design_notes"].includes(k)) return [k, v];
-  //       return [k, v === "" ? null : parseFloat(v)];
-  //     })
-  //   );
-
-  //   const payload = {
-  //     order_item_id: isNewCustomerMeasurement ? null : orderItemId,
-  //     customer_id: effectiveCustomerId,
-  //     ...processedData,
-  //   };
-
-  //   try {
-  //     if (existingMeasurement && !isNewCustomerMeasurement) {
-  //       await updateMeasurement.mutateAsync({ id: existingMeasurement.id, ...payload } as any);
-  //     } else {
-  //       await createMeasurement.mutateAsync(payload as any);
-  //     }
-  //     navigate(-1);
-  //   } catch (error) {
-  //     console.error("Save failed:", error);
-  //   }
-  // };
 
   const handleSave = async () => {
     if (isNewCustomerMeasurement && !urlCustomerId) {
@@ -172,32 +137,22 @@ export default function Measurements() {
       return;
     }
 
-    // 1. CLEAN THE DATA
-    // We filter out 'id' and 'created_at' so Supabase doesn't get confused 
-    // by the "previous profile" data we copied.
     const processedData = Object.fromEntries(
       Object.entries(formData)
         .filter(([k]) => k !== "id" && k !== "created_at" && k !== "updated_at")
         .map(([k, v]) => {
-          // String fields
-          if (["fit_type", "body_posture", "design_notes", "delivery_date"].includes(k)) {
-            return [k, v];
-          }
-          // Numeric measurement fields
-          return [k, v === "" ? null : parseFloat(v)];
+          if (["fit_type", "body_posture", "design_notes", "delivery_date"].includes(k)) return [k, v];
+          return [k, v === "" ? null : parseFloat(v as string)];
         })
     );
 
     try {
-      // 2. CONSTRUCT THE MEASUREMENT PAYLOAD
       const measurementPayload = {
         order_item_id: isNewCustomerMeasurement ? null : orderItemId,
         customer_id: effectiveCustomerId,
         ...processedData,
       };
 
-      // Remove delivery_date from the measurement_sets table payload 
-      // because it belongs in the 'orders' table instead.
       const { delivery_date, ...onlyMeasurements } = measurementPayload;
 
       if (existingMeasurement && !isNewCustomerMeasurement) {
@@ -206,19 +161,9 @@ export default function Measurements() {
         await createMeasurement.mutateAsync(onlyMeasurements as any);
       }
 
-      // 3. UPDATE THE DELIVERY DATE IN THE ORDERS TABLE
-      // This is the logic we added earlier to sync the date with the Quotation/Order
       const orderId = orderItemDetails?.order_id;
       if (orderId && formData.delivery_date) {
-        const { error: orderError } = await supabase
-          .from("orders")
-          .update({ delivery_date: formData.delivery_date })
-          .eq("id", orderId);
-
-        if (orderError) {
-          console.error("Order update error:", orderError);
-          toast.error("Measurements saved, but failed to update delivery date.");
-        }
+        await supabase.from("orders").update({ delivery_date: formData.delivery_date }).eq("id", orderId);
       }
 
       toast.success("Measurements saved successfully!");
@@ -237,73 +182,101 @@ export default function Measurements() {
     );
   }
 
-  const upperBodyFields = config?.filter(f => f.category === 'upper_body') || [];
-  const lowerBodyFields = config?.filter(f => f.category === 'lower_body') || [];
+  // Filter based on the Active Gender selected
+  const genderFilteredConfig = config?.filter(f => (f.gender || 'male') === activeGender) || [];
+  const upperBodyFields = genderFilteredConfig.filter(f => f.category === 'upper_body');
+  const lowerBodyFields = genderFilteredConfig.filter(f => f.category === 'lower_body');
 
   return (
     <AppLayout title="Measurements" subtitle={`Tailoring Profile: ${customerName || 'Customer'}`}>
       <div className="max-w-5xl mx-auto space-y-6 pb-20 animate-in fade-in duration-500">
 
-        {/* Top Header Actions */}
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate(-1)} className="hover:bg-muted">
             <ArrowLeft className="h-4 w-4 mr-2" />Back
           </Button>
 
-          {latestMeasurement && (
-            <Button variant="outline" className="border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all" onClick={handleCopyPrevious}>
-              <Copy className="h-4 w-4 mr-2" /> Copy Previous Profile
-            </Button>
-          )}
+          <div className="flex items-center gap-4">
+            {/* Simple Gender Switcher */}
+            <div className="flex bg-muted p-1 rounded-lg border shadow-sm">
+              <Button
+                variant={activeGender === 'male' ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setActiveGender('male')}
+                className="h-8 text-xs px-4 flex items-center gap-2"
+              >
+                <Users className="h-3 w-3" /> Male
+              </Button>
+              <Button
+                variant={activeGender === 'female' ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setActiveGender('female')}
+                className="h-8 text-xs px-4 flex items-center gap-2"
+              >
+                <Users className="h-3 w-3" /> Female
+              </Button>
+            </div>
+
+            {latestMeasurement && (
+              <Button variant="outline" className="border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all" onClick={handleCopyPrevious}>
+                <Copy className="h-4 w-4 mr-2" /> Copy Previous
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Vertical Two-Column Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-
-          {/* Column 1: Upper Body */}
+          {/* Upper Body Column */}
           <Card className="shadow-sm border-primary/10 overflow-hidden">
-            <CardHeader className="bg-primary/5 py-3 border-b">
-              <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-                <Ruler className="h-4 w-4" /> Upper Body
+            <CardHeader className={cn("py-3 border-b", activeGender === 'female' ? "bg-pink-50/50" : "bg-primary/5")}>
+              <CardTitle className={cn("text-sm font-bold uppercase tracking-widest flex items-center gap-2", activeGender === 'female' ? "text-pink-700" : "text-primary")}>
+                <Ruler className="h-4 w-4" /> Upper Torso ({activeGender})
               </CardTitle>
             </CardHeader>
             <CardContent className="p-2">
               <div className="flex flex-col">
-                {upperBodyFields.map((field, idx) => (
-                  <MeasurementInput
-                    key={field.name}
-                    label={field.label}
-                    field={field.name}
-                    value={formData[field.name]?.toString() || ""}
-                    onChange={handleInputChange}
-                    index={idx} // Starts from 0
-                  />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Column 2: Lower Body & Notes */}
-          <div className="space-y-6">
-            <Card className="shadow-sm border-primary/10 overflow-hidden">
-              <CardHeader className="bg-primary/5 py-3 border-b">
-                <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-                  <Ruler className="h-4 w-4" /> Lower Body
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-2">
-                <div className="flex flex-col">
-                  {lowerBodyFields.map((field, idx) => (
+                {upperBodyFields.length > 0 ? (
+                  upperBodyFields.map((field, idx) => (
                     <MeasurementInput
                       key={field.name}
                       label={field.label}
                       field={field.name}
                       value={formData[field.name]?.toString() || ""}
                       onChange={handleInputChange}
-                      // Continue indexing from where upper body left off
-                      index={upperBodyFields.length + idx}
+                      index={idx}
                     />
-                  ))}
+                  ))
+                ) : (
+                  <p className="p-4 text-center text-xs text-muted-foreground italic">No upper body fields defined.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Lower Body & Notes Column */}
+          <div className="space-y-6">
+            <Card className="shadow-sm border-primary/10 overflow-hidden">
+              <CardHeader className={cn("py-3 border-b", activeGender === 'female' ? "bg-pink-50/50" : "bg-primary/5")}>
+                <CardTitle className={cn("text-sm font-bold uppercase tracking-widest flex items-center gap-2", activeGender === 'female' ? "text-pink-700" : "text-primary")}>
+                  <Ruler className="h-4 w-4" /> Lower Torso ({activeGender})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-2">
+                <div className="flex flex-col">
+                  {lowerBodyFields.length > 0 ? (
+                    lowerBodyFields.map((field, idx) => (
+                      <MeasurementInput
+                        key={field.name}
+                        label={field.label}
+                        field={field.name}
+                        value={formData[field.name]?.toString() || ""}
+                        onChange={handleInputChange}
+                        index={upperBodyFields.length + idx}
+                      />
+                    ))
+                  ) : (
+                    <p className="p-4 text-center text-xs text-muted-foreground italic">No lower body fields defined.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -358,7 +331,6 @@ export default function Measurements() {
           </div>
         </div>
 
-        {/* Action Bar */}
         <div className="flex justify-end gap-3 pt-6 border-t">
           <Button variant="outline" onClick={() => navigate(-1)} className="px-8">Cancel</Button>
           <Button onClick={handleSave} disabled={createMeasurement.isPending || updateMeasurement.isPending} className="px-8 shadow-md">
