@@ -170,7 +170,7 @@ export default function OrderDetails() {
                   <span>₹{order.subtotal.toLocaleString("en-IN")}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">GST (18%)</span>
+                  <span className="text-muted-foreground">GST (5%)</span>
                   <span>₹{order.tax_amount.toLocaleString("en-IN")}</span>
                 </div>
                 {order.advance_amount > 0 && (
