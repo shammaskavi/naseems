@@ -239,7 +239,7 @@ export default function InvoiceDetails() {
     const encodedMessage = encodeURIComponent(message);
     // Remove spaces from phone number for the wa.me link
     const cleanPhone = invoice.customers?.phone?.replace(/\s+/g, '');
-    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+    const whatsappUrl = `https://wa.me/+91${cleanPhone}?text=${encodedMessage}`;
 
     window.open(whatsappUrl, '_blank');
   };
@@ -417,9 +417,9 @@ export default function InvoiceDetails() {
                   <div className="text-xs">
                     <p className="font-medium mb-1">Bank Details:</p>
                     <p>Bank: UNION BANK OF INDIA</p>
-                    <p>Branch: Bangalore Urban</p>
-                    <p>A/c: 376301010036880</p>
-                    <p>IFSC: UBIN0537632</p>
+                    <p>Branch: Sirsi Circle, Bangalore</p>
+                    <p>A/c: 039521010000015</p>
+                    <p>IFSC: UBIN0903957</p>
                   </div>
                   <div className="text-center">
                     <p className="text-amber-800 font-bold">For NASEEM'S</p>
