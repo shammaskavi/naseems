@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, ArrowLeft, Download, Printer, IndianRupee, History, CheckCircle2, MessageSquare } from "lucide-react";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import { useInvoice } from "@/hooks/useInvoices";
 import { usePayments, useCreatePayment } from "@/hooks/usePayments";
 import { format } from "date-fns";
@@ -147,6 +149,7 @@ export default function InvoiceDetails() {
   const navigate = useNavigate();
   const printRef = useRef<HTMLDivElement>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   const { data: invoice, isLoading: invoiceLoading } = useInvoice(id);
   const { data: payments = [], isLoading: paymentsLoading } = usePayments(id);
@@ -200,6 +203,47 @@ export default function InvoiceDetails() {
     `);
     printWindow.document.close();
     printWindow.print();
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!printRef.current || !invoice) return;
+    try {
+      setIsDownloadingPdf(true);
+      const element = printRef.current;
+
+      // Render at higher scale for better quality
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      // Convert canvas px to mm (assuming 96 DPI)
+      const mmPerPx = 25.4 / 96;
+      const imgWidthMm = canvas.width * mmPerPx;
+      const imgHeightMm = canvas.height * mmPerPx;
+
+      // Leave small margins
+      const margin = 10; // mm
+      const maxWidth = pdfWidth - margin * 2;
+      const maxHeight = pdfHeight - margin * 2;
+
+      // Scale to fit within max area without cropping
+      const scale = Math.min(maxWidth / imgWidthMm, maxHeight / imgHeightMm, 1);
+      const renderWidth = imgWidthMm * scale;
+      const renderHeight = imgHeightMm * scale;
+
+      const x = (pdfWidth - renderWidth) / 2;
+      const y = (pdfHeight - renderHeight) / 2;
+
+      pdf.addImage(imgData, 'PNG', x, y, renderWidth, renderHeight);
+      pdf.save(`${invoice.invoice_number}.pdf`);
+    } catch (err) {
+      console.error('Failed to generate PDF', err);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
   };
 
   if (invoiceLoading || paymentsLoading) {
@@ -260,6 +304,10 @@ export default function InvoiceDetails() {
                 Record Payment
               </Button>
             )}
+            <Button variant="outline" onClick={handleDownloadPDF} disabled={isDownloadingPdf}>
+              {isDownloadingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+              Download PDF
+            </Button>
             <Button variant="outline" onClick={handleWhatsAppShare}>
               <MessageSquare className="h-4 w-4 mr-2" />
               Share via WhatsApp
