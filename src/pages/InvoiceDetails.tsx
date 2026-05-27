@@ -10,11 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, ArrowLeft, Download, Printer, IndianRupee, History, CheckCircle2, MessageSquare } from "lucide-react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
+import { useReactToPrint } from "react-to-print";
 import { useInvoice } from "@/hooks/useInvoices";
 import { usePayments, useCreatePayment } from "@/hooks/usePayments";
 import { format } from "date-fns";
-import Logo from "@/assets/logo.jpeg";
-import LogoFull from "@/assets/logofull.png";
+import { PremiumInvoiceTemplate } from "@/components/printing/PremiumInvoiceTemplate";
 
 // Payment Dialog Component locally defined for use within InvoiceDetails
 function PaymentDialog({ invoice, open, onOpenChange }: { invoice: any, open: boolean, onOpenChange: (open: boolean) => void }) {
@@ -98,52 +98,6 @@ function PaymentDialog({ invoice, open, onOpenChange }: { invoice: any, open: bo
   );
 }
 
-function numberToWords(num: number): string {
-  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
-  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-  const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-
-  if (num === 0) return 'Zero';
-  if (num < 0) return 'Minus ' + numberToWords(-num);
-
-  let words = '';
-
-  if (Math.floor(num / 10000000) > 0) {
-    words += numberToWords(Math.floor(num / 10000000)) + ' Crore ';
-    num %= 10000000;
-  }
-
-  if (Math.floor(num / 100000) > 0) {
-    words += numberToWords(Math.floor(num / 100000)) + ' Lakh ';
-    num %= 100000;
-  }
-
-  if (Math.floor(num / 1000) > 0) {
-    words += numberToWords(Math.floor(num / 1000)) + ' Thousand ';
-    num %= 1000;
-  }
-
-  if (Math.floor(num / 100) > 0) {
-    words += ones[Math.floor(num / 100)] + ' Hundred ';
-    num %= 100;
-  }
-
-  if (num > 0) {
-    if (num < 10) {
-      words += ones[num];
-    } else if (num < 20) {
-      words += teens[num - 10];
-    } else {
-      words += tens[Math.floor(num / 10)];
-      if (num % 10 > 0) {
-        words += ' ' + ones[num % 10];
-      }
-    }
-  }
-
-  return words.trim();
-}
-
 export default function InvoiceDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -154,56 +108,16 @@ export default function InvoiceDetails() {
   const { data: invoice, isLoading: invoiceLoading } = useInvoice(id);
   const { data: payments = [], isLoading: paymentsLoading } = usePayments(id);
 
-  const handlePrint = () => {
-    const content = printRef.current;
-    if (!content) return;
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Invoice ${invoice?.invoice_number}</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }
-            .invoice-container { max-width: 800px; margin: 0 auto; }
-            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 15px; }
-            .company-info { text-align: right; }
-            .company-name { font-size: 24px; font-weight: bold; color: #8B4513; }
-            .tax-invoice { font-size: 14px; color: #666; margin-bottom: 10px; }
-            .customer-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-            .section-label { color: #666; font-size: 10px; margin-bottom: 4px; }
-            .section-value { font-weight: 500; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f5f5f5; font-weight: bold; }
-            .text-right { text-align: right; }
-            .totals-section { display: flex; justify-content: space-between; }
-            .amount-words { flex: 1; padding-right: 40px; }
-            .totals-table { width: 300px; }
-            .totals-table td { border: 1px solid #ddd; padding: 6px 10px; }
-            .totals-table .total-row { font-weight: bold; background-color: #f0f0f0; }
-            .footer { margin-top: 40px; display: flex; justify-content: space-between; }
-            .bank-details { font-size: 11px; }
-            .signature { text-align: center; }
-            .signature-line { border-top: 1px solid #333; margin-top: 50px; padding-top: 5px; }
-            @media print {
-              body { padding: 0; }
-              @page { margin: 15mm; }
-            }
-          </style>
-        </head>
-        <body>
-          ${content.innerHTML}
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
-  };
+  const handlePrint = useReactToPrint({
+    content: () => printRef.current,
+    documentTitle: invoice?.invoice_number ? `Invoice_${invoice.invoice_number}` : 'Invoice',
+    pageStyle: `
+      @page { size: auto; margin: 0mm; }
+      @media print {
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      }
+    `
+  });
 
   const handleDownloadPDF = async () => {
     if (!printRef.current || !invoice) return;
@@ -269,8 +183,6 @@ export default function InvoiceDetails() {
     );
   }
 
-  const amountInWords = numberToWords(Math.round(invoice.total)) + " Rupees Only";
-
   const handleWhatsAppShare = () => {
     if (!invoice) return;
 
@@ -288,195 +200,45 @@ export default function InvoiceDetails() {
     window.open(whatsappUrl, '_blank');
   };
 
-
   return (
     <AppLayout title="Invoice Details" subtitle={invoice.invoice_number}>
       <div className="space-y-4 max-w-5xl mx-auto pb-12">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate("/invoices")}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <Button variant="ghost" onClick={() => navigate("/invoices")} className="-ml-2">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Invoices
           </Button>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={handlePrint}>
+              <Printer className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Print</span>
+            </Button>
             {invoice.status !== 'paid' && (
-              <Button variant="outline" className="text-success border-success/30 hover:bg-success/5" onClick={() => setIsPaymentDialogOpen(true)}>
-                <IndianRupee className="h-4 w-4 mr-2" />
-                Record Payment
+              <Button variant="outline" className="flex-1 sm:flex-none text-emerald-700 border-emerald-700/30 hover:bg-emerald-50" onClick={() => setIsPaymentDialogOpen(true)}>
+                <IndianRupee className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Record Payment</span>
+                <span className="sm:hidden">Pay</span>
               </Button>
             )}
-            <Button variant="outline" onClick={handleDownloadPDF} disabled={isDownloadingPdf}>
-              {isDownloadingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-              Download PDF
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={handleDownloadPDF} disabled={isDownloadingPdf}>
+              {isDownloadingPdf ? <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" /> : <Download className="h-4 w-4 sm:mr-2" />}
+              <span className="hidden sm:inline">Download PDF</span>
+              <span className="sm:hidden">PDF</span>
             </Button>
-            <Button variant="outline" onClick={handleWhatsAppShare}>
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Share via WhatsApp
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={handleWhatsAppShare}>
+              <MessageSquare className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Share</span>
             </Button>
           </div>
-
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Main Invoice Section */}
-          <Card className="p-0 overflow-hidden lg:col-span-3">
-            <CardContent className="p-0">
-              <div ref={printRef} className="invoice-container p-8 bg-white text-black min-h-[1000px]">
-                {/* Header */}
-                <div className="flex justify-between border-b-2 border-gray-800 pb-4 mb-4">
-                  <div>
-                    <img src={Logo} alt="Naseems Couture Logo" className="invoice-logo h-20 mb-2" />
-                    <p className="text-sm text-gray-600 mb-2">TAX INVOICE</p>
-                    <p className="text-xs text-gray-500">E-mail: naseems.couture@gmail.com</p>
-                    <p className="text-xs text-gray-500">GSTIN: 29AHBPA9932B1ZN</p>
-                  </div>
-                  <div className="text-right">
-                    <h1 className="text-2xl font-bold text-amber-800">NASEEM'S</h1>
-                    <p className="text-lg text-amber-700">COUTURE</p>
-                    <p className="text-xs text-gray-500 mt-1">89/1, 2nd Floor, Gandhi Bazar</p>
-                    <p className="text-xs text-gray-500">Main Road Basavanagudi</p>
-                    <p className="text-xs text-gray-500">Bangalore-560004. Mobile: 7019589947</p>
-                  </div>
-                </div>
-
-                {/* Customer & Invoice Info */}
-                <div className="grid grid-cols-2 gap-6 mb-6">
-                  <div>
-                    <div className="mb-3">
-                      <p className="text-xs text-gray-500">M/s.</p>
-                      <p className="font-medium border-b border-gray-300 pb-1">{invoice.customers?.name || "N/A"}</p>
-                    </div>
-                    <div className="mb-3">
-                      <p className="text-xs text-gray-500">Address</p>
-                      <p className="border-b border-gray-300 pb-1">{invoice.customers?.address || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Phone</p>
-                      <p className="border-b border-gray-300 pb-1">{invoice.customers?.phone || "-"}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="mb-3">
-                      <p className="text-xs text-gray-500">No.</p>
-                      <p className="font-bold text-lg">{invoice.invoice_number.replace("INV-", "")}</p>
-                    </div>
-                    <div className="mb-3">
-                      <p className="text-xs text-gray-500">Date</p>
-                      <p>{format(new Date(invoice.invoice_date), "dd/MM/yyyy")}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Order</p>
-                      <p>{invoice.orders?.order_number || "-"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Items Table */}
-                <table className="w-full border-collapse mb-6">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border border-gray-300 p-2 text-left w-12">S.NO.</th>
-                      <th className="border border-gray-300 p-2 text-left">PARTICULAR</th>
-                      <th className="border border-gray-300 p-2 text-center w-20">HSN CODE</th>
-                      <th className="border border-gray-300 p-2 text-center w-16">QTY.</th>
-                      <th className="border border-gray-300 p-2 text-right w-20">RATE</th>
-                      <th className="border border-gray-300 p-2 text-right w-24">AMOUNT</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invoice.invoice_items.map((item, index) => (
-                      <tr key={item.id}>
-                        <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
-                        <td className="border border-gray-300 p-2">{item.description}</td>
-                        <td className="border border-gray-300 p-2 text-center">{item.hsn_code || "-"}</td>
-                        <td className="border border-gray-300 p-2 text-center">{item.quantity}</td>
-                        <td className="border border-gray-300 p-2 text-right">₹{item.rate.toLocaleString("en-IN")}</td>
-                        <td className="border border-gray-300 p-2 text-right">₹{item.amount.toLocaleString("en-IN")}</td>
-                      </tr>
-                    ))}
-                    {Array.from({ length: Math.max(0, 8 - invoice.invoice_items.length) }).map((_, i) => (
-                      <tr key={`empty-${i}`}>
-                        <td className="border border-gray-300 p-2">&nbsp;</td>
-                        <td className="border border-gray-300 p-2"></td>
-                        <td className="border border-gray-300 p-2"></td>
-                        <td className="border border-gray-300 p-2"></td>
-                        <td className="border border-gray-300 p-2"></td>
-                        <td className="border border-gray-300 p-2"></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {/* Totals Section */}
-                <div className="flex justify-between mb-6">
-                  <div className="flex-1 pr-8">
-                    <p className="text-xs text-gray-500 mb-1">Amount in words:</p>
-                    <p className="font-medium text-sm">{amountInWords}</p>
-                  </div>
-                  <div className="w-72">
-                    <table className="w-full border-collapse">
-                      <tbody>
-                        <tr>
-                          <td className="border border-gray-300 p-2">Total Amount Before GST</td>
-                          <td className="border border-gray-300 p-2 text-right">₹{invoice.taxable_amount.toLocaleString("en-IN")}</td>
-                        </tr>
-                        <tr>
-                          <td className="border border-gray-300 p-2">Add : CGST ({invoice.cgst_rate}%)</td>
-                          <td className="border border-gray-300 p-2 text-right">₹{invoice.cgst_amount.toLocaleString("en-IN")}</td>
-                        </tr>
-                        <tr>
-                          <td className="border border-gray-300 p-2">Add : SGST ({invoice.sgst_rate}%)</td>
-                          <td className="border border-gray-300 p-2 text-right">₹{invoice.sgst_amount.toLocaleString("en-IN")}</td>
-                        </tr>
-                        {invoice.igst_amount > 0 && (
-                          <tr>
-                            <td className="border border-gray-300 p-2">Add : IGST ({invoice.igst_rate}%)</td>
-                            <td className="border border-gray-300 p-2 text-right">₹{invoice.igst_amount.toLocaleString("en-IN")}</td>
-                          </tr>
-                        )}
-                        <tr>
-                          <td className="border border-gray-300 p-2">Round Off</td>
-                          <td className="border border-gray-300 p-2 text-right">
-                            ₹{(Math.round(invoice.total) - invoice.total).toFixed(2)}
-                          </td>
-                        </tr>
-                        <tr className="font-bold bg-gray-100">
-                          <td className="border border-gray-300 p-2">Total Amount After GST</td>
-                          <td className="border border-gray-300 p-2 text-right">₹{Math.round(invoice.total).toLocaleString("en-IN")}</td>
-                        </tr>
-                        {invoice.advance_paid > 0 && (
-                          <>
-                            <tr>
-                              <td className="border border-gray-300 p-2">Advance Paid</td>
-                              <td className="border border-gray-300 p-2 text-right">₹{invoice.advance_paid.toLocaleString("en-IN")}</td>
-                            </tr>
-                            <tr className="font-bold">
-                              <td className="border border-gray-300 p-2">Balance Due</td>
-                              <td className="border border-gray-300 p-2 text-right text-red-600">₹{invoice.due_amount.toLocaleString("en-IN")}</td>
-                            </tr>
-                          </>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="flex justify-between mt-8 pt-4 border-t border-gray-300">
-                  <div className="text-xs">
-                    <p className="font-medium mb-1">Bank Details:</p>
-                    <p>Bank: UNION BANK OF INDIA</p>
-                    <p>Branch: Sirsi Circle, Bangalore</p>
-                    <p>A/c: 039521010000015</p>
-                    <p>IFSC: UBIN0903957</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-amber-800 font-bold">For NASEEM'S</p>
-                    <p className="text-amber-700">COUTURE</p>
-                    <div className="mt-12 pt-2 border-t border-gray-400">
-                      <p className="text-xs">Authorised Signatory</p>
-                    </div>
-                  </div>
-                </div>
+          <Card className="p-0 overflow-hidden lg:col-span-3 shadow-lg border-none ring-1 ring-stone-900/5">
+            <CardContent className="p-0 overflow-x-auto w-full">
+              {/* Added a bg-stone-100 wrapper so the white template stands out on the dashboard */}
+              <div className="bg-stone-50 p-4 sm:p-8 flex justify-center w-full">
+                <PremiumInvoiceTemplate ref={printRef} invoice={invoice} />
               </div>
             </CardContent>
           </Card>
@@ -484,8 +246,8 @@ export default function InvoiceDetails() {
           {/* Sidebar Payment History */}
           <div className="lg:col-span-1 space-y-6">
             <Card className="h-fit">
-              <CardHeader className="pb-3 border-b">
-                <CardTitle className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider">
+              <CardHeader className="pb-3 border-b border-stone-100">
+                <CardTitle className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-stone-700">
                   <History className="h-4 w-4" /> Payment History
                 </CardTitle>
               </CardHeader>
@@ -506,32 +268,32 @@ export default function InvoiceDetails() {
                   {payments.length === 0 && invoice.advance_paid === 0 ? (
                     <p className="text-xs text-muted-foreground text-center py-4">No payments recorded yet</p>
                   ) : (
-                    payments.map((payment) => (
-                      <div key={payment.id} className="flex justify-between items-start border-l-2 border-success/30 pl-3 py-1">
+                    payments.map((payment: any) => (
+                      <div key={payment.id} className="flex justify-between items-start border-l-2 border-emerald-500/30 pl-3 py-1">
                         <div>
                           <p className="text-sm font-semibold capitalize">{payment.payment_mode.replace("_", " ")}</p>
                           <p className="text-xs text-muted-foreground">{format(new Date(payment.payment_date), "dd MMM yyyy")}</p>
                           {payment.reference_number && <p className="text-[10px] text-muted-foreground font-mono">#{payment.reference_number}</p>}
                         </div>
-                        <p className="text-sm font-bold text-success">₹{payment.amount.toLocaleString("en-IN")}</p>
+                        <p className="text-sm font-bold text-emerald-700">₹{payment.amount.toLocaleString("en-IN")}</p>
                       </div>
                     ))
                   )}
 
                   {/* Final Outstanding Status */}
-                  <div className="pt-4 border-t mt-4">
+                  <div className="pt-4 border-t border-stone-100 mt-4">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs text-muted-foreground font-medium uppercase">Invoice Status</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${invoice.status === 'paid' ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'}`}>
+                      <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Invoice Status</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${invoice.status === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
                         {invoice.status}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-bold">Total Due</span>
-                      <span className="text-lg font-bold text-destructive">₹{invoice.due_amount.toLocaleString("en-IN")}</span>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-sm font-bold text-stone-700">Total Due</span>
+                      <span className="text-lg font-bold text-red-600">₹{invoice.due_amount.toLocaleString("en-IN")}</span>
                     </div>
                     {invoice.status === 'paid' && (
-                      <div className="mt-3 p-2 bg-success/10 rounded-lg flex items-center justify-center gap-2 text-success">
+                      <div className="mt-3 p-2 bg-emerald-50 rounded-lg flex items-center justify-center gap-2 text-emerald-700 border border-emerald-100">
                         <CheckCircle2 className="h-4 w-4" />
                         <span className="text-xs font-bold italic tracking-tight">Fully Settled</span>
                       </div>
