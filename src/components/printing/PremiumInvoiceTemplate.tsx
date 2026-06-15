@@ -1,5 +1,6 @@
 import React, { forwardRef } from "react";
 import { format } from "date-fns";
+import { Globe, Instagram, BadgeCheck } from "lucide-react";
 import Logo from "@/assets/logo4.png";
 
 export function numberToWords(num: number): string {
@@ -191,8 +192,18 @@ export const PremiumInvoiceTemplate = forwardRef<HTMLDivElement, PremiumInvoiceT
                     </div>
                 </div>
 
-                {/* Footer */}
-                <div className="mt-16 pt-8 border-t border-stone-200 flex flex-row justify-between items-end gap-8">
+                {/* Terms & Conditions */}
+                <div className="mt-8">
+                    <p className="text-[10px] font-semibold text-stone-600 uppercase tracking-widest mb-2">Terms & Conditions</p>
+                    <div className="text-[8px] sm:text-[9px] text-stone-500 leading-relaxed max-w-2xl space-y-1">
+                        <p>No guarantee on color, fabric, or zari; dry-clean only. Goods once sold are not returnable or exchangeable. Customizations may incur extra charges. Payment is due within 30 days; overdue payments attract 18% annual interest. We are not liable for loss or damage during transit.</p>
+                        <p>All disputes arising are subject to Bangalore Jurisdiction only.</p>
+                        <p className="text-stone-700 font-medium pt-1">For Order Pickups & Enquiries: 080-43941191</p>
+                    </div>
+                </div>
+
+                {/* Footer (Bank & Signature) */}
+                <div className="mt-8 pt-8 border-t border-stone-200 flex flex-row justify-between items-end gap-8">
                     <div className="text-[10px] sm:text-xs text-stone-500 bg-stone-50 p-3 sm:p-4 rounded-sm border border-stone-100">
                         <p className="font-semibold text-stone-700 mb-2 uppercase tracking-wider text-[8px] sm:text-[10px]">Bank Transfer Details</p>
                         <div className="grid grid-cols-[50px_1fr] sm:grid-cols-[60px_1fr] gap-1">
@@ -209,12 +220,34 @@ export const PremiumInvoiceTemplate = forwardRef<HTMLDivElement, PremiumInvoiceT
                             <span className="font-mono font-medium text-stone-700">UBIN0903957</span>
                         </div>
                     </div>
-                    <div className="text-center w-40 sm:w-48">
-                        <p className="text-amber-900/50 font-serif mb-8 sm:mb-12 italic text-xs sm:text-sm">For Naseem's Couture</p>
-                        <div className="border-t border-stone-300 pt-2">
-                            <p className="text-[8px] sm:text-[10px] text-stone-400 uppercase tracking-widest font-medium">Authorised Signatory</p>
+                    <div className="text-right w-48 sm:w-56 flex flex-col items-end">
+                        <p className="text-amber-900 font-serif mb-2 italic text-xs sm:text-sm">For Naseem's Couture</p>
+                        <div className="bg-stone-50 border border-stone-200 p-2 sm:p-3 rounded text-left w-full relative overflow-hidden">
+                            <div className="flex items-start gap-2 relative z-10">
+                                <BadgeCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-[8px] sm:text-[9px] font-semibold text-emerald-800 uppercase tracking-wider mb-0.5">Digitally Signed</p>
+                                    <p className="text-[7px] sm:text-[8px] text-stone-500 font-mono">Date: {format(new Date(), "dd-MMM-yyyy")}</p>
+                                    <p className="text-[7px] sm:text-[8px] text-stone-500 font-mono mt-1 leading-tight">Computer generated document, no physical signature required.</p>
+                                </div>
+                            </div>
+                            {/* Subtle watermark background */}
+                            <BadgeCheck className="w-16 h-16 text-emerald-600/5 absolute -right-2 -bottom-4 z-0" />
                         </div>
                     </div>
+                </div>
+
+                {/* Socials / Contact */}
+                <div className="mt-12 pt-4 border-t border-stone-100 flex justify-center items-center gap-6 text-[9px] sm:text-[10px] text-stone-500">
+                    <a href="https://www.naseemscouture.com" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-amber-700 transition-colors">
+                        <Globe className="w-3 h-3" />
+                        www.naseemscouture.com
+                    </a>
+                    <span className="text-stone-300">|</span>
+                    <a href="https://www.instagram.com/naseems.couture/" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-amber-700 transition-colors">
+                        <Instagram className="w-3 h-3" />
+                        @naseems.couture
+                    </a>
                 </div>
             </div>
         );
