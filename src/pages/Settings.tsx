@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, User, Building2, Ruler, Plus, GripVertical } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Loader2, User, Building2, Ruler, Plus, GripVertical, Pencil } from "lucide-react";
 import { useSettings } from "@/hooks/useSettings";
 import { useMeasurementConfig } from "@/hooks/useMeasurements";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +32,7 @@ export default function Settings() {
   const [localConfig, setLocalConfig] = useState<any[]>([]);
   const [activeGender, setActiveGender] = useState<"male" | "female">("male");
   const [newField, setNewField] = useState({ name: "", label: "", category: "upper_body" });
+  const [editingField, setEditingField] = useState<any | null>(null);
 
   useEffect(() => {
     if (settings) {
@@ -237,8 +239,11 @@ export default function Settings() {
                                 <p className="text-[10px] text-muted-foreground uppercase">{field.category.replace('_', ' ')}</p>
                               </div>
 
-                              <div className="col-span-3 flex justify-end pr-4">
-                                <Switch checked={field.is_active} onCheckedChange={() => handleLocalToggle(field.id)} />
+                              <div className="col-span-3 flex justify-end items-center gap-3 pr-2">
+                                <Button variant="ghost" size="sm" onClick={() => setEditingField(field)} className="h-8 w-8 p-0" title="Edit Field">
+                                  <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                </Button>
+                                <Switch checked={field.is_active} onCheckedChange={() => handleLocalToggle(field.id)} title={field.is_active ? "Deactivate" : "Activate"} />
                               </div>
                             </div>
                           )}
@@ -259,6 +264,60 @@ export default function Settings() {
           </Button>
         </div>
       </div>
+
+      {/* Edit Measurement Dialog */}
+      <Dialog open={!!editingField} onOpenChange={(open) => !open && setEditingField(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Measurement Field</DialogTitle>
+          </DialogHeader>
+          {editingField && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Display Label</Label>
+                <Input
+                  value={editingField.label}
+                  onChange={(e) => setEditingField({ ...editingField, label: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={editingField.category}
+                  onValueChange={(v) => setEditingField({ ...editingField, category: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="upper_body">Upper Body</SelectItem>
+                    <SelectItem value="lower_body">Lower Body</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 pt-2">
+                <Label className="flex justify-between items-center text-muted-foreground">
+                  Internal Name
+                  <span className="text-[10px] text-destructive uppercase">Locked</span>
+                </Label>
+                <Input
+                  value={editingField.name}
+                  disabled
+                  className="bg-muted/50 cursor-not-allowed"
+                />
+                <p className="text-[10px] text-muted-foreground">The internal name cannot be changed to prevent data loss on existing customer records.</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingField(null)}>Cancel</Button>
+            <Button onClick={() => {
+              setLocalConfig(prev => prev.map(f => f.id === editingField.id ? editingField : f));
+              setEditingField(null);
+            }}>
+              Update Field
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
