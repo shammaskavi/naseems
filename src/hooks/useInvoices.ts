@@ -301,3 +301,70 @@ export function useUpdateInvoiceStatus() {
     },
   });
 }
+
+export function useApplyInvoiceDiscount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, discountAmount }: { id: string; discountAmount: number }) => {
+      // 1. Fetch the current invoice
+      const { data: invoice, error: fetchError } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!invoice) throw new Error("Invoice not found");
+
+      // Calculate total amount already paid (advance + recorded payments)
+      const totalPaid = invoice.total - invoice.due_amount;
+
+      // Recalculate totals
+      const taxableAmount = Math.max(0, invoice.subtotal - discountAmount);
+      
+      const cgstAmount = taxableAmount * (invoice.cgst_rate / 100);
+      const sgstAmount = taxableAmount * (invoice.sgst_rate / 100);
+      const igstAmount = taxableAmount * (invoice.igst_rate / 100);
+      
+      const newTotal = taxableAmount + cgstAmount + sgstAmount + igstAmount;
+      
+      const newDueAmount = Math.max(0, newTotal - totalPaid);
+
+      let newStatus = invoice.status;
+      if (newDueAmount <= 0) {
+        newStatus = "paid";
+      } else if (totalPaid > 0) {
+        newStatus = "partial";
+      } else {
+        newStatus = "unpaid";
+      }
+
+      // Update the invoice
+      const { error: updateError } = await supabase
+        .from("invoices")
+        .update({
+          discount_amount: discountAmount,
+          taxable_amount: taxableAmount,
+          cgst_amount: cgstAmount,
+          sgst_amount: sgstAmount,
+          igst_amount: igstAmount,
+          total: newTotal,
+          due_amount: newDueAmount,
+          status: newStatus,
+        })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+      return id;
+    },
+    onSuccess: (id) => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices", id] });
+      toast.success("Discount applied successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to apply discount: ${error.message}`);
+    },
+  });
+}

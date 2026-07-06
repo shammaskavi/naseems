@@ -7,14 +7,62 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowLeft, Download, Printer, IndianRupee, History, CheckCircle2, MessageSquare } from "lucide-react";
+import { Loader2, ArrowLeft, Download, Printer, IndianRupee, History, CheckCircle2, MessageSquare, Tag } from "lucide-react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { useReactToPrint } from "react-to-print";
-import { useInvoice } from "@/hooks/useInvoices";
+import { useInvoice, useApplyInvoiceDiscount } from "@/hooks/useInvoices";
 import { usePayments, useCreatePayment } from "@/hooks/usePayments";
 import { format } from "date-fns";
 import { PremiumInvoiceTemplate } from "@/components/printing/PremiumInvoiceTemplate";
+
+function DiscountDialog({ invoice, open, onOpenChange }: { invoice: any, open: boolean, onOpenChange: (open: boolean) => void }) {
+  const applyDiscount = useApplyInvoiceDiscount();
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+
+  useEffect(() => {
+    if (invoice && open) {
+      setDiscountAmount(invoice.discount_amount || 0);
+    }
+  }, [invoice, open]);
+
+  const handleSave = async () => {
+    if (!invoice) return;
+    await applyDiscount.mutateAsync({
+      id: invoice.id,
+      discountAmount: Number(discountAmount),
+    });
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Apply Discount to {invoice?.invoice_number}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Discount Amount (₹)</Label>
+            <Input
+              type="number"
+              value={discountAmount}
+              onChange={(e) => setDiscountAmount(Number(e.target.value))}
+            />
+            <p className="text-xs text-muted-foreground">This will reduce the taxable amount and recalculate GST.</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={applyDiscount.isPending}>
+            {applyDiscount.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Apply Discount
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // Payment Dialog Component locally defined for use within InvoiceDetails
 function PaymentDialog({ invoice, open, onOpenChange }: { invoice: any, open: boolean, onOpenChange: (open: boolean) => void }) {
@@ -103,6 +151,7 @@ export default function InvoiceDetails() {
   const navigate = useNavigate();
   const printRef = useRef<HTMLDivElement>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   const { data: invoice, isLoading: invoiceLoading } = useInvoice(id);
@@ -213,6 +262,13 @@ export default function InvoiceDetails() {
               <Printer className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Print</span>
             </Button>
+            {invoice.status !== 'paid' && invoice.due_amount > 0 && (
+              <Button variant="outline" className="flex-1 sm:flex-none text-blue-700 border-blue-700/30 hover:bg-blue-50" onClick={() => setIsDiscountDialogOpen(true)}>
+                <Tag className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add Discount</span>
+                <span className="sm:hidden">Disc</span>
+              </Button>
+            )}
             {invoice.status !== 'paid' && (
               <Button variant="outline" className="flex-1 sm:flex-none text-emerald-700 border-emerald-700/30 hover:bg-emerald-50" onClick={() => setIsPaymentDialogOpen(true)}>
                 <IndianRupee className="h-4 w-4 sm:mr-2" />
@@ -310,6 +366,11 @@ export default function InvoiceDetails() {
         invoice={invoice}
         open={isPaymentDialogOpen}
         onOpenChange={setIsPaymentDialogOpen}
+      />
+      <DiscountDialog
+        invoice={invoice}
+        open={isDiscountDialogOpen}
+        onOpenChange={setIsDiscountDialogOpen}
       />
     </AppLayout>
   );

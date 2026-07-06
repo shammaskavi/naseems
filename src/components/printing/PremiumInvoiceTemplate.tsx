@@ -148,6 +148,18 @@ export const PremiumInvoiceTemplate = forwardRef<HTMLDivElement, PremiumInvoiceT
 
                     <div className="w-64 sm:w-80">
                         <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                            {invoice.discount_amount > 0 && (
+                                <>
+                                    <div className="flex justify-between text-stone-500 text-[10px] sm:text-xs">
+                                        <span>Subtotal</span>
+                                        <span>₹{invoice.subtotal.toLocaleString("en-IN")}</span>
+                                    </div>
+                                    <div className="flex justify-between text-emerald-600 text-[10px] sm:text-xs">
+                                        <span>Discount</span>
+                                        <span>- ₹{invoice.discount_amount.toLocaleString("en-IN")}</span>
+                                    </div>
+                                </>
+                            )}
                             <div className="flex justify-between text-stone-600">
                                 <span>Taxable Amount</span>
                                 <span>₹{invoice.taxable_amount.toLocaleString("en-IN")}</span>
