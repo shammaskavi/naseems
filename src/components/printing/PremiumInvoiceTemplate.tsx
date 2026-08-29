@@ -79,8 +79,7 @@ export const PremiumInvoiceTemplate = forwardRef<HTMLDivElement, PremiumInvoiceT
                             89/1, 2nd Floor, Gandhi Bazar<br />
                             Main Road Basavanagudi<br />
                             Bangalore - 560004<br />
-                            Mobile: 7019589947<br />
-                            080 43941191
+                            Mobile: +917019389147<br />
                         </p>
                     </div>
                 </div>
