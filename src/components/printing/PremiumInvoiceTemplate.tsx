@@ -60,12 +60,23 @@ export const PremiumInvoiceTemplate = forwardRef<HTMLDivElement, PremiumInvoiceT
         const amountInWords = numberToWords(Math.round(invoice.total)) + " Rupees Only";
 
         return (
-            <div ref={ref} className="p-8 sm:p-12 bg-white text-stone-900 min-h-[1056px] min-w-[800px] w-full relative mx-auto font-sans">
+            <div ref={ref} className="p-8 sm:p-12 bg-white text-stone-900 min-h-[1056px] min-w-[800px] w-full relative mx-auto font-sans overflow-hidden">
                 {/* Decorative Top Border */}
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700"></div>
 
-                {/* Header */}
-                <div className="flex flex-row justify-between items-start border-b border-stone-200 pb-8 mb-8">
+                {/* Subtle Background Watermark */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 opacity-[0.03]">
+                    <img 
+                        src={Logo} 
+                        alt="Watermark" 
+                        className="w-[450px] h-auto max-h-[450px] object-contain" 
+                    />
+                </div>
+
+                {/* Content Wrapper */}
+                <div className="relative z-10">
+                    {/* Header */}
+                    <div className="flex flex-row justify-between items-start border-b border-stone-200 pb-8 mb-8">
                     <div>
                         <img src={Logo} alt="Naseems Couture Logo" className="h-16 sm:h-20 mb-4 object-contain" />
                         <p className="text-[10px] sm:text-xs font-semibold text-stone-500 tracking-[0.2em] mb-2 uppercase">Tax Invoice</p>
@@ -260,6 +271,7 @@ export const PremiumInvoiceTemplate = forwardRef<HTMLDivElement, PremiumInvoiceT
                         <Instagram className="w-3 h-3" />
                         @naseems.couture
                     </a>
+                </div>
                 </div>
             </div>
         );
