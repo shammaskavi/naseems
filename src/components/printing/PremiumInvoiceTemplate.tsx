@@ -1,6 +1,7 @@
 import React, { forwardRef } from "react";
 import { format } from "date-fns";
-import { Globe, Instagram, BadgeCheck } from "lucide-react";
+import { Globe, Instagram, BadgeCheck, QrCode } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import Logo from "@/assets/logo4.png";
 
 export function numberToWords(num: number): string {
@@ -58,6 +59,9 @@ export const PremiumInvoiceTemplate = forwardRef<HTMLDivElement, PremiumInvoiceT
         if (!invoice) return null;
 
         const amountInWords = numberToWords(Math.round(invoice.total)) + " Rupees Only";
+        const amountDue = invoice.due_amount !== undefined && invoice.due_amount !== null ? invoice.due_amount : invoice.total;
+        const upiPayAmount = amountDue > 0 ? amountDue : Math.round(invoice.total || 0);
+        const upiLink = `upi://pay?pa=naseems.couture@uboi&pn=Naseems%20Couture&am=${upiPayAmount}&cu=INR`;
 
         return (
             <div ref={ref} className="p-8 sm:p-12 bg-white text-stone-900 min-h-[1056px] min-w-[800px] w-full relative mx-auto font-sans overflow-hidden">
@@ -226,9 +230,10 @@ export const PremiumInvoiceTemplate = forwardRef<HTMLDivElement, PremiumInvoiceT
                         </div>
                     </div>
 
-                    {/* Footer (Bank & Signature) */}
-                    <div className="mt-8 pt-8 border-t border-stone-200 flex flex-row justify-between items-end gap-8">
-                        <div className="text-[10px] sm:text-xs text-stone-500 bg-stone-50 p-3 sm:p-4 rounded-sm border border-stone-100">
+                    {/* Footer (Bank, UPI QR & Signature) */}
+                    <div className="mt-8 pt-8 border-t border-stone-200 flex flex-row justify-between items-stretch gap-5">
+                        {/* Bank Transfer Details */}
+                        <div className="flex-1 text-[10px] sm:text-xs text-stone-500 bg-stone-50 p-3 sm:p-4 rounded-sm border border-stone-100 flex flex-col justify-between">
                             <p className="font-semibold text-stone-700 mb-2 uppercase tracking-wider text-[8px] sm:text-[10px]">Bank Transfer Details</p>
                             <div className="grid grid-cols-[50px_1fr] sm:grid-cols-[60px_1fr] gap-1">
                                 <span className="text-stone-400">Bank</span>
@@ -244,7 +249,37 @@ export const PremiumInvoiceTemplate = forwardRef<HTMLDivElement, PremiumInvoiceT
                                 <span className="font-mono font-medium text-stone-700">UBIN0903957</span>
                             </div>
                         </div>
-                        <div className="text-right w-48 sm:w-56 flex flex-col items-end">
+
+                        {/* UPI QR Code Section */}
+                        <div className="flex-1 bg-stone-50 p-3 sm:p-4 rounded-sm border border-stone-100 flex items-center gap-3.5">
+                            <div className="bg-white p-1.5 rounded border border-stone-200 shadow-sm shrink-0 flex items-center justify-center">
+                                <QRCodeSVG value={upiLink} size={70} level="M" />
+                            </div>
+                            <div className="flex flex-col justify-center min-w-0">
+                                <p className="font-semibold text-stone-700 uppercase tracking-wider text-[8px] sm:text-[10px] mb-1 flex items-center gap-1">
+                                    <QrCode className="w-3 h-3 text-amber-800" />
+                                    Scan & Pay (UPI)
+                                </p>
+                                <p className="font-mono text-[9px] sm:text-[10px] text-amber-950 font-medium select-all truncate">
+                                    naseems.couture@uboi
+                                </p>
+                                <p className="text-[7px] sm:text-[8px] text-stone-500 mt-1 leading-tight">
+                                    GPay • PhonePe • Paytm • BHIM
+                                </p>
+                                {amountDue > 0 ? (
+                                    <p className="text-[8px] sm:text-[9px] font-semibold text-amber-900 mt-1">
+                                        Due: ₹{amountDue.toLocaleString("en-IN")}
+                                    </p>
+                                ) : (
+                                    <p className="text-[8px] sm:text-[9px] font-semibold text-emerald-700 mt-1">
+                                        Status: Paid
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Digital Signature */}
+                        <div className="w-48 sm:w-56 flex flex-col justify-between items-end text-right">
                             <p className="text-amber-900 font-serif mb-2 italic text-xs sm:text-sm">For Naseem's Couture</p>
                             <div className="bg-stone-50 border border-stone-200 p-2 sm:p-3 rounded text-left w-full relative overflow-hidden">
                                 <div className="flex items-start gap-2 relative z-10">
