@@ -65,20 +65,25 @@ export function useAddOrderPhoto() {
       });
 
       // 2. Save metadata to Supabase DB (0 bytes file storage used)
+      const insertData: Record<string, any> = {
+        order_id: payload.orderId,
+        drive_file_id: driveResult.fileId,
+        file_name: driveResult.fileName,
+        category: payload.category || "reference",
+        view_url: driveResult.viewUrl,
+        thumbnail_url: driveResult.thumbnailUrl,
+        direct_url: driveResult.directUrl,
+        notes: payload.notes || null,
+        file_size_kb: driveResult.fileSizeKb,
+      };
+
+      if (payload.orderItemId) {
+        insertData.order_item_id = payload.orderItemId;
+      }
+
       const { data, error } = await supabase
         .from("order_photos" as any)
-        .insert({
-          order_id: payload.orderId,
-          order_item_id: payload.orderItemId || null,
-          drive_file_id: driveResult.fileId,
-          file_name: driveResult.fileName,
-          category: payload.category || "reference",
-          view_url: driveResult.viewUrl,
-          thumbnail_url: driveResult.thumbnailUrl,
-          direct_url: driveResult.directUrl,
-          notes: payload.notes || null,
-          file_size_kb: driveResult.fileSizeKb,
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -92,7 +97,7 @@ export function useAddOrderPhoto() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["order_photos", variables.orderId] });
-      toast.success("Photo uploaded and saved to Google Drive!");
+      toast.success("Photo saved to order!");
     },
     onError: (error: Error) => {
       console.error("Photo upload failed:", error);
