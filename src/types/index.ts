@@ -114,6 +114,23 @@ export interface Order {
   updatedAt: Date;
 }
 
+export type PhotoCategory = 'reference' | 'fabric' | 'sample' | 'finished' | 'other';
+
+export interface OrderPhoto {
+  id: string;
+  orderId: string;
+  orderItemId?: string;
+  driveFileId: string;
+  fileName: string;
+  category: PhotoCategory;
+  viewUrl: string;
+  thumbnailUrl: string;
+  directUrl?: string;
+  notes?: string;
+  fileSizeKb?: number;
+  createdAt: Date;
+}
+
 // ============ MEASUREMENTS ============
 export type FitType = 'regular' | 'slim' | 'comfort';
 export type BodyPosture = 'normal' | 'erect' | 'stooped' | 'forward_shoulder';

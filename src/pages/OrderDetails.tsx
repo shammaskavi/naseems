@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, Ruler, FileText, Calendar, User, CheckCircle2 } fro
 import { useOrder, useUpdateOrderStatus } from "@/hooks/useOrders";
 import { useCreateInvoiceFromOrder, useInvoices } from "@/hooks/useInvoices";
 import { useMeasurementSet } from "@/hooks/useMeasurements";
+import { OrderPhotoGallery } from "@/components/orders/OrderPhotoGallery";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -150,14 +151,19 @@ export default function OrderDetails() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
-          {/* Item List */}
-          <div className="md:col-span-2 space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-              <Ruler className="h-4 w-4" /> Garments & Measurements
-            </h3>
-            {order.order_items?.map((item) => (
-              <OrderItemCard key={item.id} item={item} />
-            ))}
+          {/* Item List & Photos */}
+          <div className="md:col-span-2 space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                <Ruler className="h-4 w-4" /> Garments & Measurements
+              </h3>
+              {order.order_items?.map((item) => (
+                <OrderItemCard key={item.id} item={item} />
+              ))}
+            </div>
+
+            {/* Photos & Attachments Section */}
+            <OrderPhotoGallery orderId={order.id} orderNumber={order.order_number} />
           </div>
 
           {/* Pricing & Actions */}

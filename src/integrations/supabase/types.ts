@@ -535,6 +535,72 @@ export type Database = {
           },
         ]
       }
+      order_photos: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          direct_url: string | null
+          drive_file_id: string
+          file_name: string
+          file_size_kb: number | null
+          id: string
+          notes: string | null
+          order_id: string
+          order_item_id: string | null
+          thumbnail_url: string
+          updated_at: string
+          view_url: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          direct_url?: string | null
+          drive_file_id: string
+          file_name: string
+          file_size_kb?: number | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          order_item_id?: string | null
+          thumbnail_url: string
+          updated_at?: string
+          view_url: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          direct_url?: string | null
+          drive_file_id?: string
+          file_name?: string
+          file_size_kb?: number | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          order_item_id?: string | null
+          thumbnail_url?: string
+          updated_at?: string
+          view_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_photos_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_photos_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number

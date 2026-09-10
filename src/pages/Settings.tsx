@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, User, Building2, Ruler, Plus, GripVertical, Pencil } from "lucide-react";
+import { Loader2, User, Building2, Ruler, Plus, GripVertical, Pencil, FolderSync, CheckCircle2, AlertCircle, Copy, Check, ExternalLink } from "lucide-react";
 import { useSettings } from "@/hooks/useSettings";
 import { useMeasurementConfig } from "@/hooks/useMeasurements";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,12 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import {
+  getGoogleScriptUrl,
+  setGoogleScriptUrl,
+  testGoogleDriveConnection,
+  isGoogleDriveConfigured,
+} from "@/lib/googleDriveService";
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -28,6 +34,12 @@ export default function Settings() {
     business_address: "",
     gstin: "",
   });
+
+  // Google Drive configuration state
+  const [googleScriptUrl, setLocalGoogleScriptUrl] = useState(getGoogleScriptUrl());
+  const [isTestingDrive, setIsTestingDrive] = useState(false);
+  const [driveTestResult, setDriveTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [copiedScript, setCopiedScript] = useState(false);
 
   const [localConfig, setLocalConfig] = useState<any[]>([]);
   const [activeGender, setActiveGender] = useState<"male" | "female">("male");
@@ -80,9 +92,79 @@ export default function Settings() {
     ));
   };
 
+  const handleTestGoogleDrive = async () => {
+    if (!googleScriptUrl.trim()) {
+      toast.error("Please enter a Google Apps Script Web App URL first");
+      return;
+    }
+    setIsTestingDrive(true);
+    setDriveTestResult(null);
+    try {
+      const result = await testGoogleDriveConnection(googleScriptUrl.trim());
+      setDriveTestResult(result);
+      if (result.success) {
+        toast.success(result.message);
+        setGoogleScriptUrl(googleScriptUrl.trim());
+      } else {
+        toast.error(result.message);
+      }
+    } catch (err: any) {
+      setDriveTestResult({ success: false, message: err.message });
+      toast.error(err.message);
+    } finally {
+      setIsTestingDrive(false);
+    }
+  };
+
+  const handleCopyAppsScript = () => {
+    const scriptCode = `/**
+ * SilaiTrack Google Drive Photo Bridge
+ * Deploy as: Web App (Execute as: Me, Who has access: Anyone)
+ */
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    if (data.action === "ping") {
+      return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Google Drive connected successfully!" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (data.action === "delete" && data.fileId) {
+      DriveApp.getFileById(data.fileId).setTrashed(true);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, message: "File moved to trash" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    var rootFolders = DriveApp.getFoldersByName("SilaiTrack Orders");
+    var rootFolder = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder("SilaiTrack Orders");
+    var orderNum = (data.orderNumber || "General").replace(/[/\\\\?%*:|"<>]/g, "-");
+    var orderFolders = rootFolder.getFoldersByName(orderNum);
+    var targetFolder = orderFolders.hasNext() ? orderFolders.next() : rootFolder.createFolder(orderNum);
+    var base64Clean = data.base64Data.replace(/^data:image\\/\\w+;base64,/, "");
+    var blob = Utilities.newBlob(Utilities.base64Decode(base64Clean), data.mimeType || "image/jpeg", data.fileName || "photo.jpg");
+    var createdFile = targetFolder.createFile(blob);
+    createdFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    var fileId = createdFile.getId();
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      fileId: fileId,
+      viewUrl: "https://drive.google.com/uc?id=" + fileId + "&export=view",
+      thumbnailUrl: "https://lh3.googleusercontent.com/d/" + fileId + "=s400",
+      directUrl: "https://drive.google.com/file/d/" + fileId + "/view",
+      fileName: createdFile.getName()
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}`;
+    navigator.clipboard.writeText(scriptCode);
+    setCopiedScript(true);
+    toast.success("Google Apps Script copied to clipboard!");
+    setTimeout(() => setCopiedScript(false), 3000);
+  };
+
   const handleSaveAll = async () => {
     try {
       await updateSettings.mutateAsync(formData);
+
+      // Save Google Script URL
+      setGoogleScriptUrl(googleScriptUrl);
 
       const existingConfigs: any[] = [];
       const newConfigs: any[] = [];
@@ -162,6 +244,114 @@ export default function Settings() {
             <div className="space-y-2"><Label>Shop Name</Label><Input value={formData.business_name} onChange={(e) => setFormData({ ...formData, business_name: e.target.value })} /></div>
             <div className="space-y-2"><Label>GSTIN</Label><Input value={formData.gstin} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} /></div>
             <div className="sm:col-span-2 space-y-2"><Label>Shop Address</Label><Input value={formData.business_address} onChange={(e) => setFormData({ ...formData, business_address: e.target.value })} /></div>
+          </CardContent>
+        </Card>
+
+        {/* GOOGLE DRIVE STORAGE CONFIGURATION */}
+        <Card className="border-primary/20 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2 text-primary">
+                <FolderSync className="h-5 w-5" /> Google Drive Photo Storage
+              </CardTitle>
+              <CardDescription>
+                Store order photos directly in your Google Drive with 0 KB Supabase storage usage.
+              </CardDescription>
+            </div>
+            {isGoogleDriveConfigured() ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Connected
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                <AlertCircle className="h-3.5 w-3.5" /> Not Configured
+              </span>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="script-url" className="text-xs font-medium">Google Apps Script Web App URL</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="script-url"
+                  placeholder="https://script.google.com/macros/s/.../exec"
+                  value={googleScriptUrl}
+                  onChange={(e) => {
+                    setLocalGoogleScriptUrl(e.target.value);
+                    setDriveTestResult(null);
+                  }}
+                  className="font-mono text-xs"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestGoogleDrive}
+                  disabled={isTestingDrive || !googleScriptUrl.trim()}
+                  className="shrink-0"
+                >
+                  {isTestingDrive ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                      Testing...
+                    </>
+                  ) : (
+                    "Test Connection"
+                  )}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Deploy your Google Apps Script as a Web App (Access: Anyone) and paste the <code className="bg-muted px-1 rounded">/exec</code> URL here.
+              </p>
+            </div>
+
+            {driveTestResult && (
+              <div
+                className={cn(
+                  "p-3 rounded-lg text-xs flex items-center gap-2 border",
+                  driveTestResult.success
+                    ? "bg-green-50 border-green-200 text-green-800"
+                    : "bg-red-50 border-red-200 text-red-800"
+                )}
+              >
+                {driveTestResult.success ? (
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                )}
+                <span>{driveTestResult.message}</span>
+              </div>
+            )}
+
+            {/* Quick Setup Box */}
+            <div className="p-3.5 rounded-lg bg-muted/40 border text-xs space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-foreground">Need to set up your Google Apps Script?</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px] gap-1"
+                    onClick={handleCopyAppsScript}
+                  >
+                    {copiedScript ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                    {copiedScript ? "Copied!" : "Copy Script Code"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-[11px] gap-1" asChild>
+                    <a href="https://script.google.com" target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-3 w-3" />
+                      Open script.google.com
+                    </a>
+                  </Button>
+                </div>
+              </div>
+              <ol className="list-decimal list-inside space-y-1 text-muted-foreground leading-relaxed pl-1">
+                <li>Go to <strong>script.google.com</strong> and click <strong>+ New project</strong>.</li>
+                <li>Click <strong>Copy Script Code</strong> above and paste it into the editor.</li>
+                <li>Click <strong>Deploy &rarr; New deployment &rarr; Web app</strong>.</li>
+                <li>Set <em>Execute as: Me</em> and <em>Who has access: Anyone</em>, then click <strong>Deploy</strong>.</li>
+                <li>Copy the resulting Web App URL and paste it into the field above!</li>
+              </ol>
+            </div>
           </CardContent>
         </Card>
 
