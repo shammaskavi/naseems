@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -412,6 +412,9 @@ export function OrderPhotoGallery({ orderId, orderNumber }: OrderPhotoGalleryPro
               <UploadCloud className="h-5 w-5 text-primary" />
               Upload Order Photo
             </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Select category and optional notes for this order attachment.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
@@ -497,6 +500,8 @@ export function OrderPhotoGallery({ orderId, orderNumber }: OrderPhotoGalleryPro
       {/* ==================================================================== */}
       <Dialog open={Boolean(lightboxPhoto)} onOpenChange={(open) => !open && setLightboxPhoto(null)}>
         <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-neutral-800 text-white">
+          <DialogTitle className="sr-only">Photo Viewer</DialogTitle>
+          <DialogDescription className="sr-only">High resolution photo preview</DialogDescription>
           <div className="relative flex flex-col max-h-[90vh]">
             {/* Header bar */}
             <div className="p-3 bg-neutral-900/90 flex items-center justify-between border-b border-neutral-800">
@@ -557,10 +562,10 @@ export function OrderPhotoGallery({ orderId, orderNumber }: OrderPhotoGalleryPro
               <Trash2 className="h-5 w-5" />
               Delete Photo
             </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              Are you sure you want to delete this photo? It will be removed from this order and moved to your Google Drive trash.
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Are you sure you want to delete this photo? It will be removed from this order and moved to your Google Drive trash.
-          </p>
           <DialogFooter className="gap-2 sm:gap-0 mt-3">
             <Button
               variant="outline"

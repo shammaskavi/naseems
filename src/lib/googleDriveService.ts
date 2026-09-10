@@ -48,11 +48,22 @@ export interface UploadDriveResponse {
   fileSizeKb: number;
 }
 
+function formatDriveErrorMessage(errorOrStatus: any): string {
+  const errStr = String(errorOrStatus || "");
+  if (errStr.includes("404")) {
+    return "Google Apps Script returned 404 (Not Found). In Google Apps Script, click: Deploy -> Manage deployments -> ✏️ Edit -> Version: 'New version' -> Who has access: 'Anyone' -> Deploy.";
+  }
+  if (errStr.includes("401") || errStr.includes("403") || errStr.includes("Load failed") || errStr.includes("Failed to fetch")) {
+    return "Google access blocked. Ensure your Apps Script deployment is configured with 'Execute as: Me' and 'Who has access: Anyone'.";
+  }
+  return errStr || "Google Drive connection error";
+}
+
 /**
  * Tests connection to the Google Apps Script Web App.
  */
 export async function testGoogleDriveConnection(customUrl?: string): Promise<{ success: boolean; message: string }> {
-  const scriptUrl = customUrl || getGoogleScriptUrl();
+  const scriptUrl = (customUrl || getGoogleScriptUrl()).trim();
 
   if (!scriptUrl) {
     return {
@@ -77,7 +88,7 @@ export async function testGoogleDriveConnection(customUrl?: string): Promise<{ s
     if (!response.ok) {
       return {
         success: false,
-        message: `HTTP error ${response.status}: ${response.statusText}`,
+        message: formatDriveErrorMessage(`HTTP ${response.status} ${response.statusText}`),
       };
     }
 
@@ -96,7 +107,7 @@ export async function testGoogleDriveConnection(customUrl?: string): Promise<{ s
   } catch (error: any) {
     return {
       success: false,
-      message: error.message || "Failed to reach Google Apps Script URL. Please verify deployment settings.",
+      message: formatDriveErrorMessage(error.message),
     };
   }
 }
@@ -109,7 +120,7 @@ export async function uploadToGoogleDrive(params: {
   orderNumber?: string;
   quality?: number;
 }): Promise<UploadDriveResponse> {
-  const scriptUrl = getGoogleScriptUrl();
+  const scriptUrl = getGoogleScriptUrl().trim();
 
   if (!scriptUrl) {
     throw new Error(
@@ -135,32 +146,36 @@ export async function uploadToGoogleDrive(params: {
   };
 
   // 3. Send to Google Apps Script
-  const response = await fetch(scriptUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "text/plain;charset=utf-8",
-    },
-    body: JSON.stringify(payload),
-  });
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8",
+      },
+      body: JSON.stringify(payload),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Upload failed with HTTP status ${response.status}`);
+    if (!response.ok) {
+      throw new Error(formatDriveErrorMessage(`HTTP ${response.status} ${response.statusText}`));
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || "Google Drive upload failed");
+    }
+
+    return {
+      fileId: data.fileId,
+      viewUrl: data.viewUrl,
+      thumbnailUrl: data.thumbnailUrl,
+      directUrl: data.directUrl,
+      fileName: data.fileName || compressed.fileName,
+      fileSizeKb: compressed.compressedSizeKb,
+    };
+  } catch (err: any) {
+    throw new Error(formatDriveErrorMessage(err.message));
   }
-
-  const data = await response.json();
-
-  if (!data.success) {
-    throw new Error(data.error || "Google Drive upload failed");
-  }
-
-  return {
-    fileId: data.fileId,
-    viewUrl: data.viewUrl,
-    thumbnailUrl: data.thumbnailUrl,
-    directUrl: data.directUrl,
-    fileName: data.fileName || compressed.fileName,
-    fileSizeKb: compressed.compressedSizeKb,
-  };
 }
 
 /**
